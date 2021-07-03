@@ -1,0 +1,7 @@
+Ver oss erviços de rede rodando
+
+sudo ss -atpu
+
+Após identificar o serviço sem uso remover seu pacote
+
+sudo apt purge package_name

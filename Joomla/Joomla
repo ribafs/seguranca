@@ -1,0 +1,179 @@
+Melhorando a segurança de sites com Joomla
+
+Ocultar o meta generator
+Editar o index.php do template default e inserir no início
+<?php $this->setGenerator(null); ?>
+
+
+Se o site está em
+/var/www/html
+
+Copiar o configuration.php para o /var/www
+
+E renomearpara cfg.php
+
+- Remover todo o conteúdo do /var/www/html/configuration.php e deixar apenas estas duas linhas:
+
+<?php
+require_once( dirname( __FILE__ ) . '/../cfg.php' );
+
+Obs.: lembre de fazer o backup do arquivo cfg.php, que agora está fora do diretório web
+
+
+Permissões de arquivos importantes
+
+configuration.php – 400
+index.php do site – 400
+index.php do template padrão – 400
+Permissões de pastas:
+includes e libraries – 500
+
+
+Adicionar ao .htaccess:
+
+Efetuar antes uma cópia do .htaccess
+
+# Block out any script trying to set a mosConfig value through the URL
+RewriteCond %{QUERY_STRING} mosConfig_[a-zA-Z_]{1,21}(=|\%3D) [OR]
+
+# Block out any script trying to base64_encode crap to send via URL
+RewriteCond %{QUERY_STRING} base64_encode.*\(.*\) [OR]
+# Block out any script that includes a <script> tag in URL
+RewriteCond %{QUERY_STRING} (\<|%3C).*script.*(\>|%3E) [NC,OR]
+# Block out any script trying to set a PHP GLOBALS variable via URL
+RewriteCond %{QUERY_STRING} GLOBALS(=|\[|\%[0-9A-Z]{0,2}) [OR]
+# Block out any script trying to modify a _REQUEST variable via URL
+RewriteCond %{QUERY_STRING} _REQUEST(=|\[|\%[0-9A-Z]{0,2})
+# Send all blocked request to homepage with 403 Forbidden error!
+RewriteRule ^(.*)$ index.php [F,L]
+
+
+A maioria dos ataques ocorre pelo fato dos arquivos estarem com 777, extensões vulneráveis
+
+Existe o Security Strike no Joomla! que cuida somente deste assunto
+https://docs.joomla.org/Security_Strike_Team
+https://developer.joomla.org/security-centre.html
+https://volunteers.joomla.org/teams/security-strike-team
+
+O Joomla envia um email para o e-mail da instalação sempre que aparece uma nova versão.
+É importante atualizar imediatamente.
+
+Para verificar sites que foram hackeados/defaced:
+http://www.zone-h.org/archive?zh=1
+
+
+Melhorando a segurança de sites com Joomla
+
+Evite alterar o código do core do Joomla. Para isso use extensões. Se necessário uma extensão que não encontrou precisa criar uma. Para facilitar pode fazer uma cópia de umae xistente e partir daí. Caso altere o core pode estar comprometendo a segurança ou então engessando o código, visto que na próxima atualização as alterações podem ser perdidas.
+
+Ocultar o meta generator, que aparece quando mostramos o fonte da página com Ctrl+U
+
+Editar o index.php do template default e inserir no início
+
+<?php $this->setGenerator('Anything you want or leave empty'); ?>
+
+Código
+
+Quando programando para Joomla devemos utilizar seu framework, em especial suas funções de filtragem para bancos de dados e para limpeza de arquivos no sistema de arquivos, entre outras.
+
+Não devemos esquecer as boas práticas de programação e manter o código bem organizado.
+
+Devemos ter cuidado especial com todas as entradas de usuários: URLs, campos de formulários devem ser filtrados por caracteres especiais, especialmente campos hidden, cookies, etc para isso usando as funções do Joomla.
+
+Devemos sempre usar criptografia em campos de senha, reforçar formulários com tokens.
+
+Devemos usar session para bloquear o acesso direto em todos os scripts.
+
+No caso do Joomla, devemos ativar o recurso de URLs amigáveis para maior proteção contra os ataques via URL.
+
+Nunca usar caminhos diretos em includes e sempre preferir require a include, pois os includes não param em erros nem disparam mensagens de erro.
+
+
+== Mover o configuration.php para fora da web
+
+Faça backup do arquivo configuration.php original fora do diretório web e/ou em seu desktop
+
+cp configuration.php /home/ribafs/backup
+
+O site está em
+/var/www/despertai
+
+Copiar o configuration.php para o /var/www
+
+sudo configuration.php ..
+
+E renomear para cfg.php
+
+sudo mv ../configuration.php ../cfg.php
+
+- Remover todo o conteúdo do /var/www/site/configuration.php e deixar apenas estas duas linhas:
+
+<?php
+require_once( dirname( __FILE__ ) . '/../cfg.php' );
+
+
+Remover os arquivos
+
+LICENSE.txt
+web.config.txt
+README.txt
+
+
+Renomear
+htaccess.txt .htaccess
+robots.txt.dist
+robots.txt
+
+
+
+Permissões de arquivos importantes
+
+chmod 400 configuration.php
+chmod 400 index.php
+chmod 400 templates/shaper_helixultimate/index.php
+chmod 500 includes
+chmod 500 libraries
+
+sudo chmod 644 ../cfg.php
+
+Adicionar ao .htaccess:
+
+Efetuar antes uma cópia do .htaccess antes das alterações
+
+cdd
+
+cp .htaccess /home/ribafs/backup/htaccess
+
+# Block out any script trying to set a mosConfig value through the URL
+RewriteCond %{QUERY_STRING} mosConfig_[a-zA-Z_]{1,21}(=|\%3D) [OR]
+
+# Block out any script trying to base64_encode crap to send via URL
+RewriteCond %{QUERY_STRING} base64_encode.*\(.*\) [OR]
+# Block out any script that includes a <script> tag in URL
+RewriteCond %{QUERY_STRING} (\<|%3C).*script.*(\>|%3E) [NC,OR]
+# Block out any script trying to set a PHP GLOBALS variable via URL
+RewriteCond %{QUERY_STRING} GLOBALS(=|\[|\%[0-9A-Z]{0,2}) [OR]
+# Block out any script trying to modify a _REQUEST variable via URL
+RewriteCond %{QUERY_STRING} _REQUEST(=|\[|\%[0-9A-Z]{0,2})
+# Send all blocked request to homepage with 403 Forbidden error!
+RewriteRule ^(.*)$ index.php [F,L]
+
+Testar
+
+http://despertai.net.br
+
+A maioria dos ataques ocorre pelo fato dos arquivos/diretórios estarem com permissões 777 e/ou com extensões vulneráveis
+
+Existe o Security Strike no Joomla! que cuida somente deste assunto
+
+https://docs.joomla.org/Security_Strike_Team
+https://developer.joomla.org/security-centre.html
+https://volunteers.joomla.org/teams/security-strike-team
+
+O Joomla envia um email para o e-mail da instalação sempre que aparece uma nova versão.
+É importante atualizar imediatamente.
+
+Para verificar sites que foram hackeados/defaced:
+http://www.zone-h.org/archive?zh=1
+
+

@@ -1,0 +1,45 @@
+Modos SELinux
+
+Quando o SELinux está ativado, ele pode ser executado nos modos enforcing ou permissive.
+
+    • No modo de aplicação/enforcing, o SELinux aplica suas políticas em seu sistema e nega o acesso com base nessas políticas. Use o seguinte comando para visualizar os módulos de política SELinux carregados atualmente na memória:
+
+       sudo semodule -l
+
+    • O modo permissivo não impõe nenhuma de suas políticas SELinux; em vez disso, ele registra quaisquer ações que teriam sido negadas em seu arquivo /var/log/audit/audit.log.
+
+    • Você pode verificar qual modo o seu sistema está executando, emitindo o seguinte comando:
+
+        sudo getenforce
+
+    • Para colocar o SELinux no modo permissivo, use o seguinte comando:
+
+        sudo setenforce 0
+
+      O modo permissivo é útil ao configurar seu sistema, porque você e os componentes do sistema podem interagir com seus arquivos, scripts e programas sem restrição. No entanto, você pode usar logs de auditoria e mensagens do sistema para entender o que seria restrito no modo de aplicação. Isso o ajudará a construir melhor as políticas necessárias para os usuários e programas de seu sistema.
+
+    • Use o utilitário sealert para gerar um relatório de seu registro de auditoria. O log incluirá informações sobre o que o SELinux está impedindo e como permitir a ação, se desejado.
+
+        sudo sealert -a /var/log/audit/audit.log
+
+      A saída será semelhante ao exemplo, no entanto, varia dependendo dos programas e configurações do seu sistema. O exemplo foi gerado usando um Linode executando o servidor da web Apache com uma configuração de hosts virtuais.
+      
+     SELinux is preventing /usr/sbin/httpd from write access on the directory logs.
+      
+      *****  Plugin httpd_write_content (92.2 confidence) suggests   ***************
+      
+      If you want to allow httpd to have write access on the logs directory
+      Then you need to change the label on 'logs'
+      Do
+    
+      sudo semanage fcontext -a -t httpd_sys_rw_content_t 'logs'
+      
+      sudo restorecon -v 'logs'
+      
+    • Para permitir ao Apache (/usr/sbin/httpd) escrever no diretório de logs, como mostra o output, você pode executar: 
+    
+    semanage fcontext -a -t httpd_sys_rw_content_t 'logs'
+    
+    restorecon -v 'logs'.
+
+    

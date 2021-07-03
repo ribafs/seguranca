@@ -1,0 +1,85 @@
+SSGuard
+
+Previna ataques de força bruta usando a ferramenta SSHGuard. SSHGuard monitora as atividades dos logs dos servidores. Quando os logs informam que alguém está fazendo algo ruim, SSHGuard reage bloqueando-o por um tempo.
+
+Quando ele detecta que alguém está fazendo algo errado em um serviço, o SSHGuard bloqueia o endereço IP da pessoa mal-intencionada. SSHGuard é executado em uma máquina como um pequeno daemon e recebe mensagens de log (de várias maneiras, por exemplo, do syslog). Quando ele determina que o endereço X fez algo ruim para atender Y, ele dispara uma regra no firewall da máquina (uma das muitas suportadas) para bloquear X.
+
+SSHGuard mantém o X bloqueado por algum tempo, depois o libera automaticamente.
+
+Alguns dos recursos mais importantes do SSHGuard são:
+    • SSHGuard interpreta mensagens de log com vários formatos - syslog, syslog-ng, metalog, multilog e raw log.
+    • SSHGuard opera todos os principais sistemas de firewall ao redor.
+    • SSHGuard suporta autenticação de mensagem de log. Possui lista negra automática e suporta endereçamento IPv6. Ele oferece suporte ao monitoramento de múltiplas fontes, listas brancas sofisticadas e ações de bloqueio por serviço e por endereço.
+
+Estes são os back-ends de bloqueio disponíveis (escolha o seu):
+    1. SSHGuard com PF (OpenBSD, FreeBSD, NetBSD, DragonFly BSD)
+    2. SSHGuard com netfilter / iptables (Linux)
+    3. SSHGuard com IPFW (FreeBSD, Mac OS X)
+    4. SSHGuard com IP FILTER (FreeBSD, NetBSD, Solaris)
+    5. SSHGuard com TCP wrappers / hosts.allow (quase qualquer sistema UNIX)
+
+SSHGuard é distribuído sob a licença permissiva BSD: você pode usar, modificar e redistribuir o software, por sua própria conta e risco, para qualquer uso, inclusive comercial.
+
+Instalar
+    
+sudo apt update; sudo apt install -y sshguard
+
+
+Configurar o SSGuard no ufw na porta 44422
+
+sudo nano /etc/ufw/before.rules
+
+# hand off control for sshd to sshguard
+:sshguard - [0:0]
+-A ufw-before-input -p tcp --dport 44422 -j sshguard
+
+Para IPv6, no /etc/ufw/before6.rules, adicione:
+
+:sshguard - [0:0]
+-A ufw6-before-input -p tcp --dport 44422 -j sshguard
+
+sudo service ufw restart
+
+Configurações
+
+sudo nano /etc/sshguard/sshguard.conf
+
+#### REQUIRED CONFIGURATION ####
+# Full path to backend executable (required, no default)
+BACKEND="/usr/libexec/sshg-fw-iptables"
+
+# Space-separated list of log files to monitor. (optional, no default)
+FILES="/var/log/auth.log"
+
+# IP addresses listed in the WHITELIST_FILE are considered to be
+# friendlies and will never be blocked.
+WHITELIST_FILE=/etc/sshguard/whitelist
+
+Também
+
+#### OPTIONS ####
+# Block attackers when their cumulative attack score exceeds THRESHOLD.
+# Most attacks have a score of 10. (optional, default 30)
+THRESHOLD=30
+
+# Block attackers for initially BLOCK_TIME seconds after exceeding THRESHOLD.
+# Subsequent blocks increase by a factor of 1.5. (optional, default 120)
+BLOCK_TIME=120
+
+# Remember potential attackers for up to DETECTION_TIME seconds before
+# resetting their score. (optional, default 1800)
+DETECTION_TIME=1800
+
+# Colon-separated blacklist threshold and full path to blacklist file.
+# (optional, no default)
+BLACKLIST_FILE=90:/etc/blacklist
+
+sudo service sshguard start
+
+
+Referências
+https://zm.is/preventing-brute-force-attacks-on-ssh-with-sshguard/
+https://sourcedigit.com/16618-install-configure-sshguard-on-linux-ubuntu-systems/
+https://www.rosehosting.com/blog/how-to-install-sshguard-on-an-ubuntu-vps/
+https://www.unixmen.com/prevent-brute-force-attacks-using-these-tools/
+

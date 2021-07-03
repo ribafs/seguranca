@@ -1,0 +1,18 @@
+Excluindo regras
+
+sudo ufw status numbered
+Status: active
+
+     To                         Action      From
+     --                         ------      ----
+[ 1] Apache Full                ALLOW IN    Anywhere                  
+[ 2] OpenSSH                    ALLOW IN    Anywhere                  
+[ 3] Apache Full (v6)           ALLOW IN    Anywhere (v6)             
+[ 4] OpenSSH (v6)               ALLOW IN    Anywhere (v6)
+
+sudo ufw delete 3
+
+Deleting:
+ allow 'Apache Full'
+Proceed with operation (y|n)? y
+Rule deleted (v6)

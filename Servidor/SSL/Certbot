@@ -1,0 +1,25 @@
+In the future, you can try using --staging to get test certificates instead of production certificates (test certificates from the staging server don’t count against your production server rate limit), or --dry-run (starting in client version 0.4.0) to get test certificates without installing them (to verify that the CA would be willing to issue the certificates you request using the verification method you plan to use).
+
+ Delete and reinstall SSL certificates with certbot on Ubuntu
+certbotresetcert.sh
+certbot certificates
+# find the path to the fullchain certificate you wish to reinstall
+certbot revoke --cert-path /etc/letsencrypt/live/... #path to the cert from above
+certbot delete --cert-name yourdomain.com
+rm -Rf /etc/apache2/sites-available/000-default-le-ssl.conf #or whatever the name of the apache conf you had it configured on 
+rm -Rf 000-default-le-ssl.conf #or whatever the name of the apache conf you had it configured on
+sudo apache2ctl restart
+certbot #follow the guide to setup the new certificate
+
+Warning: This will delete ALL certificates (including private keys), account keys, renewal configuration and log files. Don’t run this unless you have a good reason to!
+You might also be interested in the config_changes or rollback subcommands for the apache plugin, allowing you to view or revert changes made to your apache configuration.
+
+Off the top of my head, this should remove any traces:
+
+rm -rf /path/to/your/git/clone/directory
+rm -rf ~/.local/share/letsencrypt
+rm -rf /etc/letsencrypt
+rm -rf /var/log/letsencrypt
+rm -rf /var/lib/letsencrypt
+
+(Let me know if I missed anything!)

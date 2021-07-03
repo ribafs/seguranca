@@ -1,0 +1,9 @@
+Inspecionar pacotes de protocolo com Tcpdump
+
+Use o utilitário tcpdump para farejar pacotes de rede localmente e inspecionar seu conteúdo em busca de tráfego suspeito (portas origem-destino, protocolos TCP / IP, tráfego de camada dois, solicitações ARP incomuns).
+
+Para uma melhor análise do arquivo capturado tcpdump, use um programa mais avançado como o Wireshark.
+
+tcpdump -i eno16777736 -w tcpdump.pcap
+
+

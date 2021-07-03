@@ -1,0 +1,1595 @@
+Uma introdução ao SELinux no CentOS 8
+
+Este tutorial foi escrito por Sadequl Hussain e publicado pelo Digital Ocean originalmente em inglês e para a versão 7 do CentOS, no link:
+https://www.digitalocean.com/community/tutorial_series/an-introduction-to-selinux-on-centos-7
+
+Traduzi para o português com a ajuda do Google Translator (https://translate.google.com.br/) e adaptei para a versão 8.3 do CentOS com poucas alterações.
+
+SELinux é um módulo de segurança do kernel Linux que traz segurança reforçada para sistemas Linux. Esta série apresenta termos e conceitos básicos do SELinux, demonstrando como habilitar o SELinux, alterar configurações de segurança, verificar logs e resolver erros. Após completar todas as três etapas, você terá um sistema CentOS 8 funcional com SELinux habilitado, com quatro usuários adicionados com diferentes graus de acesso.
+
+Security Enhanced Linux ou SELinux é um mecanismo de controle de acesso avançado integrado na maioria das distribuições Linux modernas. Foi inicialmente desenvolvido pela NSA - Agência de Segurança Nacional dos Estados Unidos para proteger os sistemas de computador contra intrusão e violação maliciosas. Com o tempo, o SELinux foi lançado em domínio público e várias distribuições o incorporaram em seus códigos.
+
+Muitos administradores de sistema consideram o SELinux um território um tanto desconhecido. O tópico pode parecer assustador e às vezes bastante confuso. No entanto, um sistema SELinux configurado corretamente pode reduzir significativamente os riscos de segurança e saber um pouco sobre isso pode ajudá-lo a solucionar mensagens de erro relacionadas ao acesso. Neste tutorial, aprenderemos sobre os conceitos por trás do SELinux - seus pacotes, comandos e arquivos de configuração - e as mensagens de erro que ele registra quando o acesso é negado. Também veremos alguns exemplos práticos de colocar o SELinux em ação.
+
+Observação
+
+Os comandos, pacotes e arquivos mostrados neste tutorial foram testados no CentOS 8. Os conceitos permanecem os mesmos para outras distribuições.
+Neste tutorial, estaremos executando os comandos como usuário root, a menos que seja indicado o contrário. Se você não tem acesso à conta root e usa outra conta com privilégios sudo, você precisa preceder os comandos com a palavra-chave sudo.
+
+Por que SELinux
+
+Antes de começar, vamos entender alguns conceitos.
+
+O SELinux implementa o que é conhecido como MAC (Mandatory Access Control/Controle de Acesso Obrigatório). Isso é implementado em cima do que já está presente em cada distribuição do Linux, o DAC (Discretionary Access Control/Controle de Acesso Discricionário).
+
+Para entender o DAC, vamos primeiro considerar como funciona a segurança tradicional de arquivos do Linux.
+
+Em um modelo de segurança tradicional, temos três entidades: Usuário, Grupo e Outro (u, g, o), que pode ter uma combinação de permissões de Leitura, Gravação e Execução (r, w, x) em um arquivo ou diretório. Se um usuário 'jo' criar um arquivo em seu diretório pessoal, esse usuário terá acesso de leitura/gravação a ele, assim como o grupo do 'jo'. O "outro" possivelmente não terá acesso a ela. No bloco de código a seguir, podemos considerar o conteúdo hipotético do diretório inicial de 'jo'.
+
+Você não precisa configurar este usuário 'jo' - configuraremos muitos usuários posteriormente no tutorial.
+
+Executando um comando como este:
+
+ls -l /home/jo/
+
+Mostra
+total 4
+-rwxrw-r--. 1 jo jo 41 Aug  6 22:45 myscript.sh
+
+Agora jo pode alterar este acesso. jo pode conceder (e restringir) o acesso a este arquivo para outros usuários e grupos ou alterar o proprietário do arquivo. Essas ações podem deixar arquivos críticos expostos a contas que não precisam desse acesso. jo também pode restringir para ser mais seguro, mas isso é discricionário: não há como o administrador do sistema aplicá-lo para todos os arquivos do sistema.
+
+Considere outro caso: quando um processo Linux é executado, ele pode ser executado como usuário root ou outra conta com privilégios de superusuário. Isso significa que, se um hacker de chapéu preto assumir o controle do aplicativo, ele pode usar esse aplicativo para obter acesso a qualquer recurso ao qual a conta do usuário tenha acesso. Para processos executados como usuário root, basicamente, isso significa tudo no servidor Linux.
+
+Pense em um cenário em que você deseja restringir os usuários de executar scripts de shell de seus diretórios pessoais. Isso pode acontecer quando você tem desenvolvedores trabalhando em um sistema em produção. Você gostaria que eles visualizassem os arquivos de log, mas não quer que usem os comandos su ou sudo e não quer que eles executem scripts de seus diretórios pessoais. Como você faz isso?
+
+O SELinux é uma forma de ajustar esses requisitos de controle de acesso. Com o SELinux, você pode definir o que um usuário ou processo pode fazer. Ele confina cada processo a seu próprio domínio, de forma que o processo possa interagir apenas com certos tipos de arquivos e outros processos de domínios permitidos. Isso evita que um hacker sequestre qualquer processo para obter acesso de todo o sistema.
+
+Configurando um Sistema de Teste
+
+Para nos ajudar a aprender os conceitos, construiremos um servidor de teste rodando tanto um servidor web quanto um SFTP. Começaremos com uma instalação simples do CentOS 8 com o mínimo de pacotes instalados e instalaremos os daemons Apache e vsftp nesse servidor. No entanto, não configuraremos nenhum desses aplicativos.
+
+Também criaremos algumas contas de usuário de teste em nosso servidor de nuvem. Usaremos esses relatos em diferentes lugares ao longo da lição.
+Finalmente, instalaremos os pacotes necessários relacionados ao SELinux. Isso é para garantir que possamos trabalhar com os comandos SELinux mais recentes.
+
+== Acessar
+
+Usar durante todo o tutorial com o user root
+
+ssh root@143.110.215.113
+
+dnf update
+
+reboot
+
+ssh root@143.110.215.113
+
+Verificar se o SELinux está instalado e ativo
+
+getenforce
+Enforcing
+
+Instalado e ativo
+
+
+== Instalando Apache e SFTP Services
+
+Primeiro, vamos fazer login no servidor como usuário root e executar o seguinte comando para instalar o Apache:
+
+DNF - Dandified YUM, o novo gerenciador do CentOS na versão 8, que substituiu o YUM.
+
+dnf install httpd
+
+A saída mostrará o pacote que está sendo baixado e pedirá permissão para instalar:
+
+Iniciar o daemon
+
+systemctl start httpd
+
+ou
+service httpd start
+
+http://http://143.110.215.113/
+
+Mostra a página inicial
+
+dnf install vsftpd
+
+Iniciar o daemon
+
+systemctl start vsftpd
+
+systemctl status vsftpd
+
+Instalação do SELinux
+
+Alguns pacotes são instalados por default.
+
+Aqui está uma lista de pacotes para distribuições baseadas em Red Hat:
+
+    • policycoreutils (provides utilities for managing SELinux) 
+    • policycoreutils-python (provides utilities for managing SELinux) 
+    • selinux-policy (provides SELinux reference policy) 
+    • selinux-policy-targeted (provides SELinux targeted policy) 
+    • libselinux-utils (provides some tools for managing SELinux) 
+    • setroubleshoot-server (provides tools for deciphering audit log messages) 
+    • setools (provides tools for audit log monitoring, querying policy, and file context management) 
+    • setools-console (provides tools for audit log monitoring, querying policy, and file context management) 
+    • mcstrans (tools to translate different levels to easy-to-understand format) 
+    
+Alguns deles já estão instalados. Para verificar quais pacotes SELinux estão instalados em seu sistema CentOS 8, você pode executar alguns comandos como o abaixo (com diferentes termos de pesquisa após grep) como usuário root:
+
+rpm -qa | grep selinux
+
+python3-libselinux-2.9-4.el8_3.x86_64
+libselinux-2.9-4.el8_3.x86_64
+libselinux-utils-2.9-4.el8_3.x86_64
+selinux-policy-targeted-3.14.3-54.el8_3.2.noarch
+rpm-plugin-selinux-4.14.3-4.el8.x86_64
+selinux-policy-3.14.3-54.el8_3.2.noarch
+
+Você pode ir em frente e instalar todos os pacotes com o comando abaixo (o dnf irá apenas atualizar qualquer um que você já tenha), ou apenas aqueles que você achar que faltam em seu sistema:
+
+dnf install policycoreutils selinux-policy selinux-policy-targeted libselinux-utils setroubleshoot-server setools setools-console mcstrans
+
+Agora devemos ter um sistema carregado com todos os pacotes SELinux. Também temos os servidores Apache e SFTP em execução com suas configurações padrão. Também temos quatro contas de usuário regulares prontas para teste, além da conta root.
+
+Modos SELinux
+
+É hora de começar a brincar com o SELinux, então vamos começar com os modos do SELinux. A qualquer momento, o SELinux pode estar em qualquer um dos três modos possíveis:
+    • Enforcing 
+    • Permissive 
+    • Disabled 
+    
+No modo enforcing, o SELinux reforçará sua política no sistema Linux e garantirá que todas as tentativas de acesso não autorizado por usuários e processos sejam negadas. As negações de acesso também são gravadas em arquivos de log relevantes. Falaremos sobre as políticas do SELinux e logs de auditoria mais tarde.
+
+O modo permissive é como um estado semi-habilitado. O SELinux não aplica sua política no modo permissive, portanto, nenhum acesso é negado. No entanto, qualquer violação de política ainda é registrada nos registros de auditoria/logs. É uma ótima maneira de testar o SELinux antes de aplicá-lo.
+
+O modo disabled é autoexplicativo - o sistema não funcionará com segurança aprimorada.
+
+Verificando os modos e status do SELinux
+
+Podemos executar o comando getenforce para verificar o modo SELinux atual.
+
+getenforce
+
+O SELinux está ativo no momento, então a saída ficará assim:
+Enforcing
+
+Também podemos executar o comando sestatus:
+
+sestatus
+
+SELinux status:                 enabled
+SELinuxfs mount:                /sys/fs/selinux
+SELinux root directory:         /etc/selinux
+Loaded policy name:             targeted
+Current mode:                   enforcing
+Mode from config file:          enforcing
+Policy MLS status:              enabled
+Policy deny_unknown status:     allowed
+Memory protection checking:     actual (secure)
+Max kernel policy version:      32
+
+Quando o SELinux é desabilitado, a saída mostrará:
+SELinux status:        disabled
+
+
+Configuração SELinux
+
+O arquivo de configuração principal do SELinux é /etc/selinux/config. Podemos executar o seguinte comando para visualizar seu conteúdo:
+
+cat /etc/selinux/config
+
+# This file controls the state of SELinux on the system.
+# SELINUX= can take one of these three values:
+#     enforcing - SELinux security policy is enforced.
+#     permissive - SELinux prints warnings instead of enforcing.
+#     disabled - No SELinux policy is loaded.
+SELINUX=enforcing
+# SELINUXTYPE= can take one of these two values:
+#     targeted - Targeted processes are protected,
+#     minimum - Modification of targeted policy. Only selected processes are protected. 
+#     mls - Multi Level Security protection.
+SELINUXTYPE=targeted
+
+Existem duas diretivas neste arquivo (SELINUX e SELINUXTYPE). A diretiva SELINUX determina o modo SELinux e pode ter três valores possíveis, conforme discutimos antes.
+
+A diretiva SELINUXTYPE determina a política que será usada. O valor padrão é targeted/direcionado. Com uma política targeted, o SELinux permite que você personalize e ajuste as permissões de controle de acesso. Outro valor possível é "MLS" (segurança multinível), um modo avançado de proteção. Também com o MLS, você precisa instalar um pacote adicional.
+
+Habilitando e desabilitando o SELinux
+
+Habilitar o SELinux é bastante simples; mas ao contrário de desativá-lo, deve ser feito em um processo de duas etapas. Presumimos que o SELinux está desativado no momento e que você instalou todos os pacotes do SELinux da seção anterior.
+
+Como primeiro passo, precisamos editar o arquivo /etc/selinux/config para alterar a diretiva SELINUX para o modo permissivo.
+
+dnf install -y nano
+
+nano /etc/sysconfig/selinux
+
+...
+SELINUX=permissive
+...
+
+Definir o status como permissive primeiro é necessário porque cada arquivo no sistema precisa ter seu contexto rotulado antes que o SELinux possa ser aplicado. A menos que todos os arquivos estejam devidamente rotulados, os processos em execução em domínios confinados podem falhar porque não podem acessar arquivos com os contextos corretos. Isso pode fazer com que o processo de inicialização falhe ou comece com erros. 
+Apresentaremos contextos e domínios posteriormente no tutorial.
+
+Agora reinicie o sistema:
+
+reboot
+
+ssh root@143.110.215.113
+
+O processo de reinicialização verá todos os arquivos no servidor rotulados com um contexto SELinux. Uma vez que o sistema está funcionando em modo permissive, os erros do SELinux e negações de acesso serão relatados, mas nada parará.
+
+Faça login no seu servidor novamente como root. Em seguida, pesquise a string "SELinux is preventing" no conteúdo do arquivo /var/log/messages.
+
+cat /var/log/messages | grep "SELinux"
+
+Feb 26 23:30:49 centos-selinux kernel: SELinux:  Initializing.
+Feb 26 23:30:54 centos-selinux kernel: SELinux:  policy capability network_peer_controls=1
+Feb 26 23:30:54 centos-selinux kernel: SELinux:  policy capability open_perms=1
+Feb 26 23:30:54 centos-selinux kernel: SELinux:  policy capability extended_socket_class=1
+Feb 26 23:30:54 centos-selinux kernel: SELinux:  policy capability always_check_network=0
+Feb 26 23:30:54 centos-selinux kernel: SELinux:  policy capability cgroup_seclabel=1
+Feb 26 23:30:54 centos-selinux kernel: SELinux:  policy capability nnp_nosuid_transition=1
+Feb 26 23:30:54 centos-selinux systemd[1]: Successfully loaded SELinux policy in 632.429ms.
+Feb 26 23:40:38 centos-selinux kernel: SELinux:  Converting 399 SID table entries...
+Feb 26 23:40:38 centos-selinux kernel: SELinux:  policy capability network_peer_controls=1
+Feb 26 23:40:38 centos-selinux kernel: SELinux:  policy capability open_perms=1
+Feb 26 23:40:38 centos-selinux kernel: SELinux:  policy capability extended_socket_class=1
+Feb 26 23:40:38 centos-selinux kernel: SELinux:  policy capability always_check_network=0
+Feb 26 23:40:38 centos-selinux kernel: SELinux:  policy capability cgroup_seclabel=1
+Feb 26 23:40:38 centos-selinux kernel: SELinux:  policy capability nnp_nosuid_transition=1
+Feb 26 23:44:45 centos-selinux kernel: SELinux:  Initializing.
+Feb 26 23:44:49 centos-selinux kernel: SELinux:  policy capability network_peer_controls=1
+Feb 26 23:44:49 centos-selinux kernel: SELinux:  policy capability open_perms=1
+Feb 26 23:44:49 centos-selinux kernel: SELinux:  policy capability extended_socket_class=1
+Feb 26 23:44:49 centos-selinux kernel: SELinux:  policy capability always_check_network=0
+Feb 26 23:44:49 centos-selinux kernel: SELinux:  policy capability cgroup_seclabel=1
+Feb 26 23:44:49 centos-selinux kernel: SELinux:  policy capability nnp_nosuid_transition=1
+Feb 26 23:44:49 centos-selinux systemd[1]: Successfully loaded SELinux policy in 651.561ms.
+Feb 26 23:56:07 centos-selinux kernel: SELinux:  Initializing.
+Feb 26 23:56:12 centos-selinux kernel: SELinux:  policy capability network_peer_controls=1
+Feb 26 23:56:12 centos-selinux kernel: SELinux:  policy capability open_perms=1
+Feb 26 23:56:12 centos-selinux kernel: SELinux:  policy capability extended_socket_class=1
+Feb 26 23:56:12 centos-selinux kernel: SELinux:  policy capability always_check_network=0
+Feb 26 23:56:12 centos-selinux kernel: SELinux:  policy capability cgroup_seclabel=1
+Feb 26 23:56:12 centos-selinux kernel: SELinux:  policy capability nnp_nosuid_transition=1
+Feb 26 23:56:12 centos-selinux systemd[1]: Successfully loaded SELinux policy in 632.871ms.
+
+Esses tipos de erros são bons.
+
+Agora precisaremos editar o arquivo de configuração para alterar a diretiva SELINUX de permissive para enforcing
+
+nano /etc/sysconfig/selinux
+
+...
+SELINUX=enforcing
+...
+
+reboot
+
+ssh root@143.110.215.113
+
+Quando o servidor voltar e acessarmos novamente, execute para mais detalhes
+
+sestatus
+
+SELinux status:                 enabled
+SELinuxfs mount:                /sys/fs/selinux
+SELinux root directory:         /etc/selinux
+Loaded policy name:             targeted
+Current mode:                   enforcing
+Mode from config file:          enforcing
+Policy MLS status:              enabled
+Policy deny_unknown status:     allowed
+Memory protection checking:     actual (secure)
+Max kernel policy version:      32
+
+cat /var/log/messages | grep "SELinux"
+
+Não deve haver erros. A saída deve ser semelhante a esta:
+
+Feb 26 23:30:49 centos-selinux kernel: SELinux:  Initializing.
+Feb 26 23:30:54 centos-selinux kernel: SELinux:  policy capability network_peer_controls=1
+Feb 26 23:30:54 centos-selinux kernel: SELinux:  policy capability open_perms=1
+Feb 26 23:30:54 centos-selinux kernel: SELinux:  policy capability extended_socket_class=1
+Feb 26 23:30:54 centos-selinux kernel: SELinux:  policy capability always_check_network=0
+Feb 26 23:30:54 centos-selinux kernel: SELinux:  policy capability cgroup_seclabel=1
+Feb 26 23:30:54 centos-selinux kernel: SELinux:  policy capability nnp_nosuid_transition=1
+Feb 26 23:30:54 centos-selinux systemd[1]: Successfully loaded SELinux policy in 632.429ms.
+Feb 26 23:40:38 centos-selinux kernel: SELinux:  Converting 399 SID table entries...
+Feb 26 23:40:38 centos-selinux kernel: SELinux:  policy capability network_peer_controls=1
+Feb 26 23:40:38 centos-selinux kernel: SELinux:  policy capability open_perms=1
+Feb 26 23:40:38 centos-selinux kernel: SELinux:  policy capability extended_socket_class=1
+Feb 26 23:40:38 centos-selinux kernel: SELinux:  policy capability always_check_network=0
+Feb 26 23:40:38 centos-selinux kernel: SELinux:  policy capability cgroup_seclabel=1
+Feb 26 23:40:38 centos-selinux kernel: SELinux:  policy capability nnp_nosuid_transition=1
+Feb 26 23:44:45 centos-selinux kernel: SELinux:  Initializing.
+Feb 26 23:44:49 centos-selinux kernel: SELinux:  policy capability network_peer_controls=1
+Feb 26 23:44:49 centos-selinux kernel: SELinux:  policy capability open_perms=1
+Feb 26 23:44:49 centos-selinux kernel: SELinux:  policy capability extended_socket_class=1
+Feb 26 23:44:49 centos-selinux kernel: SELinux:  policy capability always_check_network=0
+Feb 26 23:44:49 centos-selinux kernel: SELinux:  policy capability cgroup_seclabel=1
+Feb 26 23:44:49 centos-selinux kernel: SELinux:  policy capability nnp_nosuid_transition=1
+Feb 26 23:44:49 centos-selinux systemd[1]: Successfully loaded SELinux policy in 651.561ms.
+Feb 26 23:56:07 centos-selinux kernel: SELinux:  Initializing.
+Feb 26 23:56:12 centos-selinux kernel: SELinux:  policy capability network_peer_controls=1
+Feb 26 23:56:12 centos-selinux kernel: SELinux:  policy capability open_perms=1
+Feb 26 23:56:12 centos-selinux kernel: SELinux:  policy capability extended_socket_class=1
+Feb 26 23:56:12 centos-selinux kernel: SELinux:  policy capability always_check_network=0
+Feb 26 23:56:12 centos-selinux kernel: SELinux:  policy capability cgroup_seclabel=1
+Feb 26 23:56:12 centos-selinux kernel: SELinux:  policy capability nnp_nosuid_transition=1
+Feb 26 23:56:12 centos-selinux systemd[1]: Successfully loaded SELinux policy in 632.871ms.
+Feb 27 00:02:15 centos-selinux kernel: SELinux:  Initializing.
+Feb 27 00:02:19 centos-selinux kernel: SELinux:  policy capability network_peer_controls=1
+Feb 27 00:02:19 centos-selinux kernel: SELinux:  policy capability open_perms=1
+Feb 27 00:02:19 centos-selinux kernel: SELinux:  policy capability extended_socket_class=1
+Feb 27 00:02:19 centos-selinux kernel: SELinux:  policy capability always_check_network=0
+Feb 27 00:02:19 centos-selinux kernel: SELinux:  policy capability cgroup_seclabel=1
+Feb 27 00:02:19 centos-selinux kernel: SELinux:  policy capability nnp_nosuid_transition=1
+Feb 27 00:02:19 centos-selinux systemd[1]: Successfully loaded SELinux policy in 622.538ms.
+
+Verificando os modos e status do SELinux (novamente)
+
+Podemos executar o comando getenforce para verificar o modo SELinux atual.
+
+getenforce
+
+Se nosso sistema estiver executando no modo de enforcing/imposição, a saída terá a seguinte aparência:
+Enforcing
+
+Para receber mais informações execute
+
+sestatus
+
+Também podemos alternar temporariamente entre os modos obrigatório e permissivo usando o comando setenforce. (Observe que não podemos executar setenforce quando o SELinux está desabilitado.)
+
+Primeiro mude o modo SELinux de obrigatório para permissivo em nosso sistema CentOS 8:
+
+setenforce permissive
+
+ou
+setenforce 0
+
+sestatus
+
+SELinux status:                 enabled
+SELinuxfs mount:                /sys/fs/selinux
+SELinux root directory:         /etc/selinux
+Loaded policy name:             targeted
+Current mode:                   permissive
+Mode from config file:          enforcing
+Policy MLS status:              enabled
+Policy deny_unknown status:     allowed
+Memory protection checking:     actual (secure)
+Max kernel policy version:      32
+
+setenforce enforcing
+
+ou
+setenforce 1
+
+sestatus
+
+Políticas do SELinux
+
+No centro do mecanismo de segurança do SELinux está sua política. Uma política é o que o nome indica: um conjunto de regras que definem os direitos de segurança e acesso para tudo no sistema. E quando dizemos tudo, queremos dizer usuários, funções, processos e arquivos. A política define como cada uma dessas entidades está relacionada entre si.
+
+Alguma Terminologia Básica
+
+Para entender a política, temos que aprender alguma terminologia básica. Entraremos em detalhes mais tarde, mas aqui está uma breve introdução. Uma política SELinux define o acesso do usuário a funções, acesso de função a domínios e acesso de domínio a tipos.
+
+Usuários
+
+O SELinux possui um conjunto de usuários pré-construídos. Cada conta de usuário regular do Linux é mapeada para um ou mais usuários SELinux.
+No Linux, um usuário executa um processo. Isso pode ser tão simples quanto o usuário 'jo' abrindo um documento no editor nano (será a conta de jo executando o processo nano) ou uma conta de serviço executando o daemon httpd. No mundo SELinux, um processo (um daemon ou um programa em execução) é chamado de subject/assunto.
+
+Roles/Funções
+
+Uma role é como um gateway/ponte que fica entre um usuário e um processo. Uma role define quais usuários podem acessar esse processo. As roles não são como grupos, mas mais como filtros: um usuário pode entrar ou assumir uma role a qualquer momento, desde que a role conceda. A definição de uma role na política SELinux define quais usuários têm acesso a essa role. Ele também define a quais domínios de processo a própria role tem acesso. As roles entram em jogo porque parte do SELinux implementa o que é conhecido como Role Based Access Control (RBAC).
+
+Subjects and Objects/Sujeitos e Objetos
+
+Um subject/assunto é um processo e pode afetar um objeto potencialmente.
+
+Um objeto no SELinux é qualquer coisa que possa ser executada. Isso pode ser um arquivo, um diretório, uma porta, um soquete tcp, o cursor ou talvez um servidor X. As ações que um subject/sujeito pode realizar em um objeto são as permissões do subject/sujeito.
+
+Domains are for Subjects/Domínios são para assuntos
+
+Um domínio é o contexto dentro do qual um subject SELinux (processo) pode ser executado. Esse contexto é como um invólucro em torno do subject. Diz ao processo o que pode e o que não pode fazer. Por exemplo, o domínio definirá quais arquivos, diretórios, links, dispositivos ou portas são acessíveis ao subject.
+
+Types are for Objects/Tipos são para objetos
+
+Um tipo é o contexto para o contexto de um arquivo que estipula a finalidade do arquivo. Por exemplo, o contexto de um arquivo pode ditar que é uma página da web, ou que o arquivo pertence ao diretório /etc, ou que o proprietário do arquivo é um usuário SELinux específico. O contexto de um arquivo é chamado de tipo no jargão do SELinux.
+
+Então, qual é a política do SELinux?
+
+A política no SELinux define o acesso do usuário a roles, acesso de role a domínios e acesso de domínio a tipos. Primeiro, o usuário deve ser autorizado a inserir uma função e, em seguida, a função deve ser autorizada a acessar o domínio. O domínio, por sua vez, está restrito a acessar apenas certos tipos de arquivos.
+
+A política em si é um monte de regras que dizem que os usuários fulano podem assumir apenas roles A e B, e essas roles serão autorizadas a acessar apenas esses domínios. Os domínios, por sua vez, podem acessar apenas alguns tipos de arquivo. A imagem a seguir mostra o conceito:
+
+User -> Role -> Domain -> File
+
+Role determina que usuários são autorizados
+Domínios determinam que roles são autorizadas
+Domínio pode acessar certo tipo de arquivo
+
+Dica de terminologia: o último bit, em que um processo em execução em um domínio específico pode realizar apenas certas operações em certos tipos de objetos, é chamado de Type Enforcement (TE).
+
+Voltando ao tópico de políticas, as implementações de políticas SELinux também são normalmente direcionadas por padrão. Se você se lembra do arquivo de configuração SELinux que vimos antes, a diretiva SELINUXTYPE está definida como targeted/direcionada. O que isso significa é que, por padrão, o SELinux restringirá apenas certos processos no sistema (ou seja, apenas alguns processos são direcionados). Os que não são direcionados serão executados em domínios não confinados.
+
+A alternativa é um modelo de negação por padrão, em que todo acesso é negado, a menos que aprovado pela política. Seria uma implementação muito segura, mas isso também significa que os desenvolvedores precisam antecipar todas as permissões possíveis que cada processo pode precisar em todos os objetos possíveis. O comportamento padrão vê o SELinux preocupado apenas com certos processos.
+
+Comportamento da política SELinux
+
+A política SELinux não é algo que substitui a segurança DAC tradicional. Se uma regra de DAC proíbe o acesso de um usuário a um arquivo, as regras de política SELinux não serão avaliadas porque a primeira linha de defesa já bloqueou o acesso. As decisões de segurança SELinux entram em jogo depois que a segurança DAC foi avaliada.
+
+Quando um sistema habilitado para SELinux é iniciado, a política é carregada na memória. A política SELinux vem em formato modular, bem como os módulos do kernel carregados no momento da inicialização. E, assim como os módulos do kernel, eles podem ser adicionados e removidos dinamicamente da memória em tempo de execução. O armazenamento de políticas usado pelo SELinux rastreia os módulos que foram carregados. O comando sestatus mostra o nome do armazenamento de política. O comando semodule -l lista os módulos de política SELinux carregados atualmente na memória.
+
+Para ter uma ideia disso, vamos executar o comando semodule:
+
+semodule -l | less
+
+Parte
+
+abrt
+accountsd
+acct
+afs
+aiccu
+aide
+ajaxterm
+alsa
+amanda
+amtu
+anaconda
+antivirus
+apache
+apcupsd
+apm
+application
+arpwatch
+asterisk
+...
+
+O semodule pode ser usado para uma série de outras tarefas, como instalação, remoção, recarregamento, atualização, habilitação e desabilitação dos módulos de política SELinux.
+
+Agora você provavelmente estaria interessado em saber onde os arquivos do módulo estão localizados. A maioria das distribuições modernas inclui versões binárias dos módulos como parte dos pacotes SELinux. Os arquivos de política têm uma extensão .pp. Para CentOS 8, podemos executar o seguinte comando:
+
+ls -l /etc/selinux/targeted/
+/etc/selinux/targeted/contents/
+/etc/selinux/targeted/logins/
+/etc/selinux/targeted/policy/
+		
+A lista mostra um arquivo com número como extensão
+policy.31, mas os arquivos de política terminam com .pp
+
+No entanto, os arquivos policy.* não podem ser lidos por humanos.
+
+A forma como a modularização do SELinux funciona é que, quando o sistema é inicializado, os módulos de política são combinados no que é conhecido como política ativa. Esta política é então carregada na memória. A versão binária combinada desta política carregada pode ser encontrada no diretório /etc/selinux/targeting/policy.
+
+ls -l /etc/selinux/targeted/policy/
+
+irá mostrar a política ativa.
+
+-rw-r--r--. 1 root root 8539546 fev 26 23:40 policy.31
+
+Alterando as configurações booleanas do SELinux
+
+Embora você não possa ler os arquivos do módulo de política, há uma maneira simples de ajustar suas configurações. Isso é feito por meio de booleanos SELinux.
+
+Para ver como funciona, vamos executar o comando semanage boolean -l.
+
+semanage boolean -l | less
+
+Isso mostra os diferentes interruptores que podem ser ligados ou desligados, o que eles fazem e seus status atuais:
+
+semanage boolean -l | less | grep ftp
+
+ftpd_anon_write                (desativado,desativado)  Allow ftpd to anon write
+ftpd_connect_all_unreserved    (desativado,desativado)  Allow ftpd to connect all unreserved
+ftpd_connect_db                (desativado,desativado)  Allow ftpd to connect db
+ftpd_full_access               (desativado,desativado)  Allow ftpd to full access
+ftpd_use_cifs                  (desativado,desativado)  Allow ftpd to use cifs
+ftpd_use_fusefs                (desativado,desativado)  Allow ftpd to use fusefs
+ftpd_use_nfs                   (desativado,desativado)  Allow ftpd to use nfs
+ftpd_use_passive_mode          (desativado,desativado)  Allow ftpd to use passive mode
+httpd_can_connect_ftp          (desativado,desativado)  Allow httpd to can connect ftp
+httpd_enable_ftp_server        (desativado,desativado)  Allow httpd to enable ftp server
+tftp_anon_write                (desativado,desativado)  Allow tftp to anon write
+tftp_home_dir                  (desativado,desativado)  Allow tftp to home dir
+...
+
+Podemos ver que a primeira opção permite que o daemon do FTP acesse os diretórios pessoais dos usuários. A configuração está desativada no momento.
+
+Para alterar qualquer uma das configurações, podemos usar o comando setsebool. Como exemplo, vamos considerar o acesso de gravação de FTP anônimo:
+
+Consultar
+
+getsebool ftpd_anon_write
+
+Isso nos mostra que a chave está desligada no momento:
+
+ftpd_anon_write --> off
+
+Em seguida, alteramos o booleano para habilitá-lo:
+
+setsebool ftpd_anon_write on
+
+Verificar o valor novamente deve mostrar a alteração:
+getsebool ftpd_anon_write
+
+ftpd_anon_write --> on
+
+Os booleanos alterados não são permanentes. Eles voltam aos valores anteriores após uma reinicialização. Para tornar as coisas permanentes, podemos usar a opção -P com o comando setsebool.
+
+setsebool ftpd_anon_write -P on
+
+
+Criação de contas de usuário de teste
+
+Primeiro, vamos criar quatro contas de usuário para demonstrar os recursos do SELinux à medida que avançamos.
+
+    • regularuser 
+    • switcheduser 
+    • guestuser 
+    • restricteduser 
+    
+Você deve ser atualmente o usuário root. Vamos executar o seguinte comando para adicionar a conta de usuário regular:
+
+useradd -c "Regular User" regularuser
+
+Em seguida, executamos o comando passwd para alterar sua senha:
+
+passwd regularuser
+
+Criar as outras contas
+
+useradd -c "Switched User" switcheduser
+passwd switcheduser
+ 
+useradd -c "Guest User" guestuser
+passwd guestuser
+ 
+useradd -c "Restricted Role User" restricteduser
+passwd restricteduser
+
+SELinux para processos e arquivos
+
+O objetivo do SELinux é proteger como os processos acessam os arquivos em um ambiente Linux. Sem o SELinux, um processo ou aplicativo como o daemon Apache será executado no contexto do usuário que o iniciou. Portanto, se o seu sistema for comprometido por um aplicativo nocivo que está sendo executado sob o usuário root, o aplicativo pode fazer o que quiser porque o root tem direitos abrangentes sobre cada arquivo.
+
+O SELinux tenta dar um passo adiante e eliminar esse risco. Com o SELinux, um processo ou aplicativo terá apenas os direitos de que necessita para funcionar e NADA mais. A política SELinux para o aplicativo determinará a quais tipos de arquivos ele precisa acessar e para quais processos ele pode fazer a transição. As políticas SELinux são escritas por desenvolvedores de aplicativos e enviadas com a distribuição Linux que as suporta. Uma política é basicamente um conjunto de regras que mapeia processos e usuários de acordo com seus direitos.
+
+Começamos a discussão desta parte do tutorial entendendo o que significam os contextos e domínios do SELinux.
+
+A primeira parte da segurança coloca um rótulo em cada entidade no sistema Linux. Um rótulo é como qualquer outro arquivo ou atributo de processo (proprietário, grupo, data de criação, etc.), mostra o contexto do recurso. Então, o que é um contexto? Simplificando, um contexto é uma coleção de informações relacionadas à segurança que ajuda o SELinux a tomar decisões de controle de acesso. Tudo em um sistema Linux pode ter um contexto de segurança: uma conta de usuário, um arquivo, um diretório, um daemon ou uma porta podem ter seus contextos de segurança. No entanto, o contexto de segurança significará coisas diferentes para diferentes tipos de objetos.
+
+Contextos de arquivo SELinux
+
+Vamos começar entendendo os contextos do arquivo SELinux. Vejamos a saída de um comando ls -l regular no diretório /etc.
+
+ls -l /etc/*.conf
+
+... 
+-rw-r--r--. 1 root root   17 fev 26 23:31 /etc/locale.conf
+-rw-r--r--. 1 root root  438 fev 19  2018 /etc/logrotate.conf
+-rw-r--r--. 1 root root 5165 mai 11  2019 /etc/man_db.conf
+-rw-r--r--. 1 root root 1108 jul 17  2020 /etc/mke2fs.conf
+...
+
+Vejamos agora
+
+ls -Z /etc/*.conf
+
+Agora temos uma coluna extra de informações após a permissão do usuário e do grupo:
+
+...
+	    system_u:object_r:locale_t:s0 /etc/locale.conf             system_u:object_r:etc_t:s0 /etc/tcsd.conf
+        system_u:object_r:etc_t:s0 /etc/logrotate.conf       system_u:object_r:locale_t:s0 /etc/vconsole.conf
+        system_u:object_r:etc_t:s0 /etc/man_db.conf             system_u:object_r:etc_t:s0 /etc/xattr.conf
+        system_u:object_r:etc_t:s0 /etc/mke2fs.conf             system_u:object_r:etc_t:s0 /etc/yum.conf
+...
+
+Esta coluna mostra os contextos de segurança dos arquivos. Diz-se que um arquivo foi rotulado com seu contexto de segurança quando você tem essas informações disponíveis para ele. Vamos dar uma olhada em um dos contextos de segurança.
+
+system_u:object_r:etc_t:s0 /etc/logrotate.conf       system_u:object_r:locale_t:s0 /etc/vconsole.conf
+
+O contexto de segurança é esta parte:
+
+system_u:object_r:locale_t:s0
+
+Existem quatro partes e cada parte do contexto de segurança é separada por dois pontos (:). A primeira parte é o contexto do usuário SELinux para o arquivo. Discutiremos os usuários do SELinux mais tarde, mas por enquanto, podemos ver que é system_u. Cada conta de usuário do Linux é mapeada para um usuário SELinux e, neste caso, o usuário root que possui o arquivo é mapeado para o usuário system_u SELinux. Esse mapeamento é feito pela política SELinux.
+
+root -> system_u
+
+A segunda parte especifica a role SELinux, que é object_r. Para atualizar as roles do SELinux, consulte o primeiro artigo do SELinux.
+O mais importante aqui é a terceira parte, o tipo de arquivo listado aqui como etc_t. Esta é a parte que define a que tipo o arquivo ou diretório pertence. Podemos ver que a maioria dos arquivos pertence ao tipo etc_t no diretório /etc. Hipoteticamente, você pode pensar no tipo como uma espécie de “grupo” ou atributo do arquivo: é uma forma de classificar o arquivo.
+
+/etc -> etc_t
+
+Também podemos ver que alguns arquivos podem pertencer a outros tipos, como locale.conf que possui um tipo locale_t. Mesmo quando todos os arquivos listados aqui têm o mesmo usuário e proprietários de grupo, seus tipos podem ser diferentes.
+
+Como outro exemplo, vamos verificar os contextos de tipo para os diretórios iniciais do usuário:
+
+ls -Z /home
+
+Os diretórios pessoais terão um tipo de contexto diferente: user_home_dir_t
+
+unconfined_u:object_r:user_home_dir_t:s0 centos       
+unconfined_u:object_r:user_home_dir_t:s0 guestuser    
+unconfined_u:object_r:user_home_dir_t:s0 regularuser
+unconfined_u:object_r:user_home_dir_t:s0 restricteduser
+unconfined_u:object_r:user_home_dir_t:s0 switcheduser
+
+A quarta parte do contexto de segurança, s0, tem a ver com segurança multinível ou MLS. Basicamente, esta é outra forma de impor a política de segurança do SELinux, e esta parte mostra a sensibilidade do recurso (s0). Falaremos brevemente sobre sensibilidade e categorias mais tarde. Para a maioria das configurações básicas do SELinux, os três primeiros contextos de segurança são mais importantes.
+
+Segurança -> s0
+
+Contextos do processo SELinux
+
+Agora vamos falar sobre os contextos de segurança do processo.
+
+Inicie os serviços Apache e SFTP. Instalamos esses serviços no primeiro tutorial do SELinux.
+
+systemctl start httpd
+systemctl start vsftpd
+
+http://http://143.110.215.113/
+
+Mostra a página inicial
+
+Podemos executar o comando ps com alguns sinalizadores para mostrar os processos Apache e SFTP em execução em nosso servidor:
+
+ps -efZ | grep 'httpd\|vsftpd'
+
+Mais uma vez, o sinalizador -Z é usado para exibir contextos SELinux. A saída mostra o usuário executando o processo, o ID do processo e o ID do processo pai:
+
+system_u:system_r:httpd_t:s0    root        1365       1  0 00:23 ?        00:00:00 /usr/sbin/httpd -DFOREGROUND
+system_u:system_r:httpd_t:s0    apache      1366    1365  0 00:23 ?        00:00:00 /usr/sbin/httpd -DFOREGROUND
+system_u:system_r:httpd_t:s0    apache      1367    1365  0 00:23 ?        00:00:00 /usr/sbin/httpd -DFOREGROUND
+system_u:system_r:httpd_t:s0    apache      1368    1365  0 00:23 ?        00:00:00 /usr/sbin/httpd -DFOREGROUND
+system_u:system_r:httpd_t:s0    apache      1369    1365  0 00:23 ?        00:00:00 /usr/sbin/httpd -DFOREGROUND
+system_u:system_r:ftpd_t:s0-s0:c0.c1023 root 1584      1  0 00:23 ?        00:00:00 /usr/sbin/vsftpd /etc/vsftpd/vsftpd.conf
+unconfined_u:unconfined_r:unconfined_t:s0-s0:c0.c1023 root 1586 1259  0 00:23 pts/0 00:00:00 grep --color=auto httpd\|vsftpd
+
+O contexto de segurança é esta parte:
+
+system_u:system_r:httpd_t:s0
+
+O contexto de segurança tem quatro partes: usuário, role/função, domínio e sensibilidade. O usuário, a role/função e a sensibilidade funcionam exatamente como os mesmos contextos para arquivos (explicado na seção anterior). O domínio é exclusivo para processos.
+
+No exemplo acima, podemos ver que alguns processos estão sendo executados no domínio httpd_t, enquanto um está sendo executado no domínio ftpd_t.
+Então, o que o domínio está fazendo pelos processos? Dá ao processo um contexto para ser executado. É como uma bolha em torno do processo que o confina. Diz ao processo o que pode e o que não pode fazer. Este confinamento garante que cada domínio de processo possa atuar em apenas certos tipos de arquivos e nada mais.
+
+Usando este modelo, mesmo se um processo for sequestrado por outro processo ou usuário malicioso, o pior que pode fazer é danificar os arquivos aos quais tem acesso. Por exemplo, o daemon vsftp não terá acesso aos arquivos usados ​​por, digamos, sendmail ou samba. Esta restrição é implementada a partir do nível do kernel: é aplicada conforme a política SELinux carrega na memória e, portanto, o controle de acesso se torna obrigatório.
+
+Convenções de Nomenclatura
+
+Antes de prosseguirmos, aqui está uma observação sobre a convenção de nomenclatura SELinux. Os usuários do SELinux são sufixados por "_u", as roles são sufixadas por "_r" e os tipos (para arquivos) ou domínios (para processos) são sufixados por "_t".
+
+Usuários -> _u
+Roles -> _r
+Tipos -> _t
+
+Como os processos acessam os recursos
+
+Até agora, vimos que arquivos e processos podem ter contextos diferentes e que são restritos a seus próprios tipos ou domínios. Então, como funciona um processo? Para ser executado, um processo precisa acessar seus arquivos e executar algumas ações neles (abrir, ler, modificar ou executar). Também aprendemos que cada processo pode ter acesso apenas a certos tipos de recursos (arquivos, diretórios, portas, etc.).
+O SELinux estipula essas regras de acesso em uma política. As regras de acesso seguem uma estrutura de declaração de permissão padrão:
+
+allow <domain> <type>:<class> { <permissions> };
+
+Já falamos sobre domínios e tipos. A classe define o que o recurso realmente representa (arquivo, diretório, link simbólico, dispositivo, portas, cursor etc.)
+
+Aqui está o que significa esta declaração genérica de permissão:
+
+     • Se um processo é de determinado domínio
+     • E o objeto de recurso que ele está tentando acessar é de determinada classe e tipo
+     • Em seguida, permita o acesso
+     • Caso contrário, negue o acesso
+
+Para ver como isso funciona, vamos considerar os contextos de segurança do daemon httpd em execução em nosso sistema CentOS 8:
+
+system_u:system_r:httpd_t:s0     7126 ?        00:00:00 httpd
+system_u:system_r:httpd_t:s0     7127 ?        00:00:00 httpd
+system_u:system_r:httpd_t:s0     7128 ?        00:00:00 httpd
+system_u:system_r:httpd_t:s0     7129 ?        00:00:00 httpd
+system_u:system_r:httpd_t:s0     7130 ?        00:00:00 httpd
+system_u:system_r:httpd_t:s0     7131 ?        00:00:00 httpd
+
+O diretório inicial padrão do servidor web é /var/www/html. Vamos criar um arquivo dentro desse diretório e verificar seu contexto:
+
+touch /var/www/html/index.html
+
+ls -Z /var/www/html/*
+
+O contexto do arquivo para nosso conteúdo da web será httpd_sys_content_t:
+
+unconfined_u:object_r:httpd_sys_content_t:s0 /var/www/html/index.html
+
+Podemos usar o comando sesearch para verificar o tipo de acesso permitido para o daemon httpd:
+
+sesearch --allow --source httpd_t --target httpd_sys_content_t --class file
+
+Os sinalizadores usados com o comando são bastante autoexplicativos: o domínio de origem é httpd_t, o mesmo domínio no qual o Apache está sendo executado. Estamos interessados em recursos de destino que são arquivos e têm um contexto de tipo de httpd_sys_content_t. 
+
+Domínio -> httpd_t
+Contexto -> httpd_sys_content_t
+
+Sua saída deve ser assim:
+
+allow domain file_type:file map; [ domain_can_mmap_files ]:True
+allow httpd_t httpd_content_type:file { getattr ioctl lock map open read };
+allow httpd_t httpd_content_type:file { getattr ioctl lock open read }; [ httpd_builtin_scripting ]:True
+allow httpd_t httpd_sys_content_t:file { getattr ioctl lock map open read };
+allow httpd_t httpdcontent:file { append create getattr ioctl link lock open read rename setattr unlink write }; [ ( httpd_builtin_scripting && httpd_unified && httpd_enable_cgi ) ]:True
+allow httpd_t httpdcontent:file { execute execute_no_trans getattr ioctl map open read }; [ ( httpd_builtin_scripting && httpd_unified && httpd_enable_cgi ) ]:True
+
+Veja a linha
+
+allow httpd_t httpd_sys_content_t:file { getattr ioctl lock map open read };
+
+Isso diz que o daemon httpd (o servidor web Apache) tem controle de E/S, leitura, obtenção de atributos, bloqueio e acesso aberto a arquivos do tipo httpd_sys_content. Nesse caso, nosso arquivo index.html tem o mesmo tipo.
+
+Indo um passo adiante, vamos primeiro modificar a página da web (/var/www/html/index.html). Edite o arquivo para conter este conteúdo:
+
+nano /var/www/html/index.html
+
+<html>
+     <title>
+         Esta é uma página da web de teste
+     </title>
+     <body>
+         <h1> Esta é uma página da web de teste </h1>
+     </body>
+</html>
+
+Em seguida, alteraremos a permissão da pasta /var/www/ e seu conteúdo, seguido por uma reinicialização do daemon httpd:
+
+chmod -R 755 /var/www
+systemctl restart httpd
+
+Em seguida, tentaremos acessá-lo de um navegador:
+
+http://IP
+
+Acessa normalmente=
+
+Observação
+
+Dependendo de como seu servidor está configurado, pode ser necessário habilitar a porta 80 no firewall FirewallD para permitir o tráfego HTTP de entrada de fora do servidor. Não entraremos em detalhes sobre a ativação de portas em FirewallD aqui. Existem alguns artigos excelentes do DigitalOcean sobre o assunto que você pode usar.
+
+Até agora tudo bem. O daemon httpd está autorizado a acessar um determinado tipo de arquivo e podemos vê-lo ao acessar através do navegador. A seguir, vamos tornar as coisas um pouco diferentes alterando o contexto do arquivo. Usaremos o comando chcon para isso. O sinalizador --type para o comando nos permite especificar um novo tipo para o recurso de destino. Aqui, estamos mudando o tipo de arquivo para var_t.
+
+chcon --type var_t /var/www/html/index.html
+
+Podemos confirmar a mudança de tipo:
+
+ls -Z /var/www/html/
+
+unconfined_u:object_r:var_t:s0 index.html
+
+Em seguida, quando tentarmos acessar novamente a página da web (ou seja, o daemon httpd tenta ler o arquivo), você pode obter um erro Forbiden/Proibido ou pode ver a página genérica “Testing 123” do CentOS:
+
+Apareceu a página original do CentOS
+
+Então, o que está acontecendo aqui? Obviamente algum acesso está sendo negado, mas de quem é esse acesso? No que diz respeito ao SELinux, o servidor web está autorizado a acessar apenas certos tipos de arquivos e var_t não é um desses contextos. Como alteramos o contexto do arquivo index.html para var_t, o Apache não pode mais lê-lo e obtemos um erro.
+
+Negar acesso ao Apache -> var_t
+
+Para fazer as coisas funcionarem novamente, vamos mudar o tipo de arquivo com o comando restorecon. A opção -v mostra a alteração dos rótulos de contexto:
+
+restorecon -v /var/www/html/index.html
+
+Relabeled /var/www/html/index.html from unconfined_u:object_r:var_t:s0 to unconfined_u:object_r:httpd_sys_content_t:s0
+
+Um refresh na página e abrir a que criamos com Esta é uma página da web de teste
+
+Este é um conceito importante a ser entendido: certificar-se de que os arquivos e diretórios tenham o contexto correto é fundamental para garantir que o SELinux esteja se comportando como deveria. Veremos um caso de uso prático no final desta seção, mas antes disso, vamos falar sobre mais algumas coisas.
+
+Herança de contexto para arquivos e diretórios
+
+O SELinux impõe algo que podemos denominar como “herança de contexto”. O que isso significa é que, a menos que especificado pela política, os processos e arquivos são criados com os contextos de seus pais.
+
+Portanto, se tivermos um processo chamado “proc_a” gerando outro processo chamado “proc_b”, o processo gerado será executado no mesmo domínio que “proc_a”, a menos que especificado de outra forma pela política SELinux.
+
+Da mesma forma, se tivermos um diretório com um tipo de “some_context_t”, qualquer arquivo ou diretório criado sob ele terá o mesmo tipo de contexto, a menos que a política diga o contrário.
+
+Para ilustrar isso, vamos verificar os contextos do diretório /var/www/:
+
+ls -Z /var/www
+
+system_u:object_r:httpd_sys_script_exec_t:s0 cgi-bin
+system_u:object_r:httpd_sys_content_t:s0 html
+
+O diretório html em /var/www/ tem o contexto do tipo httpd_sys_content_t. Como vimos antes, o arquivo index.html dentro dele tem o mesmo contexto (ou seja, o contexto do pai):
+
+/var/www/ -> httpd_sys_content_t
+
+Essa herança não é preservada quando os arquivos são copiados para outro local. Em uma operação de cópia, o arquivo ou diretório copiado assumirá o contexto de tipo do local de destino. No snippet de código abaixo, estamos copiando o arquivo index.html (com o contexto do tipo “httpd_sys_content_t”) para o diretório /var/:
+
+cp /var/www/html/index.html /var/
+
+Se verificarmos o contexto do arquivo copiado, veremos que ele mudou para var_t, o contexto de seu diretório pai atual:
+
+ls -Z /var/index.html
+ 
+unconfined_u:object_r:var_t:s0 /var/index.html
+
+Esta mudança de contexto pode ser substituída pela cláusula --preserver = context no comando cp.
+
+Quando arquivos ou diretórios são movidos, os contextos originais são preservados. No comando a seguir, estamos movendo o /var/index.html para o diretório /etc/:
+
+mv  /var/index.html  /etc/
+
+Quando verificamos o contexto do arquivo movido, vemos que o contexto var_t foi preservado no diretório /etc/:
+
+ls -Z /etc/index.html
+ 
+unconfined_u:object_r:var_t:s0 /etc/index.html
+
+Então, por que estamos tão preocupados com os contextos de arquivos? Por que esse conceito de copiar e mover é importante? Pense nisso: talvez você tenha decidido copiar todos os arquivos HTML do seu servidor da web para um diretório separado na pasta raiz. Você fez isso para simplificar o processo de backup e também para aumentar a segurança: você não quer que nenhum hacker adivinhe facilmente onde estão os arquivos do seu site. Você atualizou o controle de acesso do diretório, alterou o arquivo de configuração da web para apontar para o novo local, reiniciou o serviço, mas ainda não funciona. Talvez você possa examinar os contextos do diretório e seus arquivos como a próxima etapa de solução de problemas. Vamos ver como um exemplo prático.
+
+SELinux em ação: testando um erro de contexto de arquivo
+
+Primeiro, vamos criar um diretório chamado www na raiz. Também criaremos uma pasta chamada html em www.
+
+mkdir -p /www/html
+
+Se executarmos o comando ls -Z, veremos que esses diretórios foram criados com o contexto default_t:
+
+Contexto - default_t
+
+ls -Z /www/
+ 
+unconfined_u:object_r:default_t:s0 html
+
+Em seguida, copiamos o conteúdo do diretório /var/www/html para /www/html:
+
+cp /var/www/html/index.html /www/html/
+
+O arquivo copiado terá um contexto de default_t. Esse é o contexto do diretório pai.
+
+Agora editamos o arquivo httpd.conf para apontar para este novo diretório como a pasta raiz do site. Também teremos que relaxar os direitos de acesso a este diretório.
+
+nano /etc/httpd/conf/httpd.conf
+
+Primeiro, comentamos a localização existente para a raiz do documento e adicionamos uma nova diretiva DocumentRoot para /www/html:
+
+# DocumentRoot "/var/www/html"
+
+DocumentRoot "/www/html"
+
+Também comentamos a seção de direitos de acesso para a raiz do documento existente e adicionamos uma nova seção:
+
+#<Directory "/var/www">
+#    AllowOverride None
+    # Allow open access:
+#    Require all granted
+#</Directory>
+
+<Directory "/www">
+    AllowOverride None
+    # Allow open access:
+    Require all granted
+</Directory>
+
+Deixamos a localização do diretório cgi-bin como está. Não estamos entrando na configuração detalhada do Apache aqui; queremos apenas que nosso site funcione para os propósitos do SELinux.
+
+Por fim, reinicie o daemon httpd:
+
+systemctl restart httpd
+
+Uma vez que o servidor tenha sido reiniciado, acessar a página web nos dará o mesmo erro “403 Forbiden” (ou página padrão “Teste 123”) que vimos antes.
+
+Voltou a página original do Apache no CentOS.
+
+O erro está acontecendo porque o contexto do arquivo index.html mudou durante a operação de cópia. Ele precisa ser alterado de volta ao seu contexto original (httpd_sys_content_t).
+
+Mas como nós fazemos isso?
+
+Alterando e restaurando contextos de arquivo SELinux
+
+Em um exemplo de código anterior, vimos dois comandos para alterar o conteúdo do arquivo: chcon e restorecon. 
+
+A execução de chcon é uma medida temporária. Você pode usá-lo para alterar temporariamente os contextos de arquivo ou diretório para solucionar erros de negação de acesso. No entanto, esse método é apenas temporário: uma renomeação do sistema de arquivos ou a execução do comando restorecon reverterá o arquivo de volta ao seu contexto original.
+
+Além disso, a execução de chcon requer que você saiba o contexto correto para o arquivo; o sinalizador --type especifica o contexto para o destino. 
+
+restorecon não precisa disso especificado. Se você executar o restorecon, o arquivo terá o contexto correto reaplicado e as alterações se tornarão permanentes.
+
+Mas se você não sabe o contexto correto do arquivo, como o sistema sabe qual contexto aplicar ao executar o restorecon?
+
+Convenientemente, o SELinux “lembra” o contexto de cada arquivo ou diretório no servidor. No CentOS 8, os contextos de arquivos já existentes no sistema são listados no arquivo /etc/selinux/target/contexts/files/file_contexts. 
+
+Arquivo com conextos - /etc/selinux/target/contexts/files/file_contexts
+
+É um arquivo grande e lista todos os tipos de arquivos associados a todos os aplicativos suportados pela distribuição Linux. Contextos de novos diretórios e arquivos são registrados no arquivo /etc/selinux/targeted/contexts/files/file_contexts.local. Portanto, quando executamos o comando restorecon, o SELinux procura o contexto correto de um desses dois arquivos e o aplica ao destino.
+
+Contextos de novos diretórios e arquivos são registrados no arquivo /etc/selinux/targeted/contexts/files/file_contexts.local
+
+O snippet de código abaixo mostra um trecho de um dos arquivos:
+
+cat /etc/selinux/targeted/contexts/files/file_contexts | less
+ 
+...
+/bin/.* system_u:object_r:bin_t:s0
+/dev/.* system_u:object_r:device_t:s0
+/etc/.* system_u:object_r:etc_t:s0
+/lib/.* system_u:object_r:lib_t:s0
+/opt/.* system_u:object_r:usr_t:s0
+/run/.* system_u:object_r:var_run_t:s0
+/srv/.* system_u:object_r:var_t:s0
+...
+
+Para alterar permanentemente o contexto do nosso arquivo index.html em /www/html, temos que seguir um processo de duas etapas.
+
+• Primeiro, executamos o comando semanage fcontext. Isso gravará o novo contexto no arquivo /etc/selinux/targeted/contexts/files/file_contexts.local. Mas não vai renomear o próprio arquivo. Faremos isso para os dois diretórios.
+     
+semanage fcontext --add --type httpd_sys_content_t "/www(/.*)?"
+semanage fcontext --add --type httpd_sys_content_t "/www/html(/.*)?"
+
+Para ter certeza, podemos verificar o banco de dados de contexto do arquivo (observe que estamos usando o arquivo file_contexts.local):
+
+cat /etc/selinux/targeted/contexts/files/file_contexts.local | less
+
+Você deve ver os contextos atualizados:
+# This file is auto-generated by libsemanage
+# Do not edit directly.
+
+/www(/.*)?    system_u:object_r:httpd_sys_content_t:s0
+/www/html(/.*)?    system_u:object_r:httpd_sys_content_t:s0
+
+A seguir, executaremos o comando restorecon. Isso irá rotular novamente o arquivo ou diretório com o que foi registrado na etapa anterior:
+
+restorecon -Rv /www
+
+Isso deve redefinir o contexto em três níveis: o diretório de nível superior /www, o diretório /www/html abaixo dele e o arquivo index.html em /www/html:
+
+Relabeled /www from unconfined_u:object_r:default_t:s0 to unconfined_u:object_r:httpd_sys_content_t:s0
+Relabeled /www/html from unconfined_u:object_r:default_t:s0 to unconfined_u:object_r:httpd_sys_content_t:s0
+Relabeled /www/html/index.html from unconfined_u:object_r:default_t:s0 to unconfined_u:object_r:httpd_sys_content_t:s0
+
+Se tentarmos acessar a página da web, ela deve funcionar.
+
+Existe uma ferramenta bacana chamada matchpathcon que pode ajudar a solucionar problemas relacionados ao contexto. Este comando examinará o contexto atual de um recurso e o comparará com o que está listado no banco de dados de contexto SELinux. Se for diferente, irá sugerir a mudança necessária. Vamos testar isso com o arquivo /www/html/index.html. Usaremos a sinalização -V que verifica o contexto:
+
+matchpathcon -V /www/html/index.html
+
+A saída do matchpathcon deve mostrar que o contexto foi verificado.
+
+/www/html/index.html verified.
+
+Para um arquivo rotulado incorretamente, a mensagem dirá qual deve ser o contexto:
+
+/www/html/index.html has context unconfined_u:object_r:default_t:s0, should be system_u:object_r:httpd_sys_content_t:s0 
+
+Transição de Domínio
+
+Até agora, vimos como os processos acessam os recursos do sistema de arquivos. Veremos agora como os processos acessam outros processos.
+A transição de domínio é o método em que um processo muda seu contexto de um domínio para outro. Para entender isso, digamos que você tenha um processo chamado proc_a em execução em um contexto de contexta_t. Com a transição de domínio, proc_a pode executar um aplicativo (um programa ou um script executável) chamado app_x que geraria outro processo. Este novo processo pode ser chamado proc_b e pode estar rodando dentro do domínio contextb_t. Portanto, efetivamente, contexta_t está em transição para contextb_t por meio de app_x. O executável app_x está funcionando como um ponto de entrada para contextb_t. O fluxo pode ser ilustrado abaixo:
+
+Processo a executa o arquivo			O código executável gera o processo b
+
+Processo a		Arquivo executável		Processo b
+Contexto a		Contexto x				Contexto b
+
+				Ponto de entrada 
+				para o contexto b
+				
+O caso de transição de domínio é bastante comum no SELinux. Vamos considerar o processo vsftpd em execução em nosso servidor. Se não estiver em execução, podemos executar o comando service vsftpd start para iniciar o daemon.
+
+Em seguida, consideramos o processo do systemd. Este é o ancestral de todos os processos. Esta é a substituição do processo init do System V e é executado dentro de um contexto de init_t. :
+
+ps -eZ  | grep init
+
+system_u:system_r:init_t:s0           1 ?        00:00:01 systemd
+system_u:system_r:init_t:s0        1252 ?        00:00:00 (sd-pam)
+
+O processo em execução no domínio init_t é de curta duração: ele invocará o executável binário /usr/sbin/vsftpd, que possui um contexto de tipo ftpd_exec_t. Quando o executável binário é iniciado, ele se torna o próprio daemon vsftpd e é executado dentro do domínio ftpd_t.
+
+Podemos verificar os contextos de domínio dos arquivos e processos:
+
+ls -Z /usr/sbin/vsftpd
+ 
+system_u:object_r:ftpd_exec_t:s0 /usr/sbin/vsftpd
+
+Portanto, aqui o processo em execução no domínio init_t está executando um arquivo binário com o tipo ftpd_exec_t. Esse arquivo inicia um daemon dentro do domínio ftpd_t.
+
+Essa transição não é algo que o aplicativo ou o usuário pode controlar. Isso foi estipulado na política SELinux que carrega na memória quando o sistema é inicializado. Em um servidor não SELinux, um usuário pode iniciar um processo mudando para uma conta mais poderosa (desde que ela ou ele tenha o direito de fazer isso). No SELinux, esse acesso é controlado por políticas pré-escritas. E essa é outra razão pela qual se diz que o SELinux implementa o Controle de Acesso Obrigatório.
+
+A transição de domínio está sujeita a três regras estritas:
+    • O processo pai do domínio de origem deve ter permissão de execução para o aplicativo localizado entre os dois domínios (este é o ponto de entrada).
+    • O contexto do arquivo para o aplicativo deve ser identificado como um ponto de entrada para o domínio de destino.
+    • O domínio original deve ter permissão para fazer a transição para o domínio de destino.
+
+Pegando o exemplo do daemon vsftpd acima, vamos executar o comando sesearch com diferentes opções para ver se o daemon está em conformidade com essas três regras.
+
+Primeiro, o domínio de origem init_t precisa ter permissão de execução no aplicativo de ponto de entrada com o contexto ftpd_exec_t. Portanto, se executarmos o seguinte comando:
+
+exibir todas as regras permitidas (muitas regras exibidas)
+sesearch --allow 
+
+exibir regras que o domínio [httpd_t] tem permissão para acessar
+sesearch -s httpd_t --allow 
+
+exibir regras permitidas que o domínio pode acessar ao tipo [httpd_sys_script_exec_t]
+sesearch -t httpd_sys_script_exec_t --allow 
+
+exibir regras permitidas que domínio pode gravar em arquivos [shadow_t type]
+sesearch -t shadow_t -c file -p write --allow 
+
+exibir regras definidas no valor booleano [samba_enable_home_dirs]
+sesearch -b samba_enable_home_dirs --allow 
+
+sesearch -s init_t -t ftpd_exec_t -c file -p execute -A
+
+allow init_t ftpd_exec_t:file { execute execute_no_trans getattr ioctl map open read };
+allow initrc_domain direct_init_entry:file { execute getattr map open read }
+
+O resultado mostra que os processos dentro do domínio init_t podem ler, obter atributos, executar e abrir arquivos do contexto ftpd_exec_t:
+
+Foi encontrada 1 regra av semântica:
+
+allow init_t ftpd_exec_t:file { execute execute_no_trans getattr ioctl map open read };
+
+Em seguida, verificamos se o arquivo binário é o ponto de entrada para o domínio de destino ftpd_t:
+
+sesearch -s ftpd_t -t ftpd_exec_t -c file -p entrypoint -A
+allow ftpd_t ftpd_exec_t:file { entrypoint execute getattr ioctl lock map open read };
+
+E de fato é assim:
+
+Foi encontrada 1 regra av semântica:
+
+allow ftpd_t ftpd_exec_t:file { entrypoint execute getattr ioctl lock map open read };
+
+E, finalmente, o domínio de origem init_t precisa ter permissão para fazer a transição para o domínio de destino ftpd_t:
+
+sesearch -s init_t -t ftpd_t -c process -p transition -A
+allow init_t ftpd_t:process transition;
+allow initrc_domain daemon:process transition;
+
+Como podemos ver abaixo, o domínio de origem tem essa permissão:
+
+Foi encontrada 1 regra av semântica:
+allow init_t ftpd_t:process transition;
+
+Domínios não confinados
+
+Quando introduzimos o conceito de domínios, nós o comparamos a uma bolha hipotética em torno do processo: algo que estipula o que o processo pode e não pode fazer. Isso é o que confina o processo.
+
+O SELinux também possui processos que são executados em domínios não confinados. Como você pode imaginar, os processos não confinados teriam todos os tipos de acesso no sistema. Mesmo assim, esse acesso total não é arbitrário: o acesso total também é especificado na política SELinux.
+O exemplo de um domínio de processo não confinado seria unconfined_t. Este é o mesmo domínio que os usuários conectados executam seus processos por padrão. Falaremos sobre usuários e seus acessos aos domínios de processo nas seções subsequentes.
+
+
+Ajustando acesso de usuários
+
+Nesta parte final de nosso tutorial do SELinux, falaremos sobre os usuários do SELinux e como ajustar seu acesso. Também aprenderemos sobre logs de erros do SELinux e como entender as mensagens de erro.
+
+Usuários SELinux
+
+Os usuários do SELinux são entidades diferentes das contas de usuário normais do Linux, incluindo a conta root. Um usuário SELinux não é algo que você cria com um comando especial, nem tem seu próprio acesso de login ao servidor. Em vez disso, os usuários do SELinux são definidos na política que é carregada na memória no momento da inicialização e existem apenas alguns desses usuários. Os nomes de usuário terminam com _u, assim como os tipos ou nomes de domínio terminam com _t e as funções/roles terminam com _r. Diferentes usuários do SELinux têm direitos diferentes no sistema e é isso que os torna úteis.
+
+O usuário SELinux listado na primeira parte do contexto de segurança de um arquivo é o usuário que possui esse arquivo. É exatamente como você veria o proprietário de um arquivo em uma saída de comando ls -l normal. Um rótulo de usuário em um contexto de processo mostra o privilégio do usuário SELinux com o qual o processo está sendo executado.
+
+Quando o SELinux é imposto, cada conta de usuário regular do Linux é mapeada para uma conta de usuário SELinux. Pode haver várias contas de usuário mapeadas para o mesmo usuário SELinux. Esse mapeamento permite que uma conta regular herde a permissão de sua contraparte SELinux.
+
+Para visualizar esse mapeamento, podemos executar o comando::
+
+semanage login -l
+
+Nome de usuário      Usuário do SELinux   Intervalo MLS/MCS    Serviço
+
+__default__          unconfined_u         s0-s0:c0.c1023       *
+root                 unconfined_u         s0-s0:c0.c1023       *
+
+A primeira coluna nesta tabela, “Nome de usuário”, representa as contas de usuário Linux locais. Mas existem apenas três listados aqui, você pode perguntar, não criamos algumas contas na segunda parte deste tutorial? Sim, e eles são representados pela entrada mostrada como padrão. Qualquer conta de usuário regular do Linux é primeiro mapeada para o login padrão. Ele é então mapeado para o usuário SELinux chamado unconfined_u. No nosso caso, esta é a segunda coluna da primeira linha. A terceira coluna mostra a classe de segurança multinível/Segurança de várias categorias (MLS/MCS) para o usuário. Por enquanto, vamos ignorar essa parte e também a coluna depois dela (Serviço).
+
+Em seguida, temos o usuário root. Observe que ele não está mapeado para o login "padrão", em vez disso, ele recebeu sua própria entrada. Mais uma vez, o root também é mapeado para o usuário SELinux unconfined_u.
+
+system_u é uma classe diferente de usuário, destinada a executar processos ou daemons.
+
+Para ver quais usuários SELinux estão disponíveis no sistema, podemos executar o comando de usuário semanage:
+
+semanage user -l
+
+A saída em nosso sistema CentOS 8 deve ser assim:
+
+                Rótulo     MLS/       MLS/                          
+Usuário do SELinux Prefixo    Nível MCS  Intervalo MCS                  Funções do SELinux
+
+guest_u         user       s0         s0                             guest_r
+root            user       s0         s0-s0:c0.c1023                 staff_r sysadm_r system_r unconfined_r
+staff_u         user       s0         s0-s0:c0.c1023                 staff_r sysadm_r unconfined_r
+sysadm_u        user       s0         s0-s0:c0.c1023                 sysadm_r
+system_u        user       s0         s0-s0:c0.c1023                 system_r unconfined_r
+unconfined_u    user       s0         s0-s0:c0.c1023                 system_r unconfined_r
+user_u          user       s0         s0                             user_r
+xguest_u        user       s0         s0                             xguest_r
+
+O que essa tabela maior significa?
+
+Em primeiro lugar, mostra os diferentes usuários do SELinux definidos pela política. Já tínhamos visto usuários como unconfined_u e system_u antes, mas agora estamos vendo outros tipos de usuários como guest_u, staff_u, sysadm_u, user_u e assim por diante. Os nomes são um pouco indicativos dos direitos associados a eles. Por exemplo, podemos presumir que o usuário sysadm_u teria mais direitos de acesso do que guest_u.
+Para verificar nosso convidado, vamos dar uma olhada na quinta coluna, Roles/Funções do SELinux. Se você se lembra da primeira parte deste tutorial, as roles do SELinux são como gateways entre um usuário e um processo. Também os comparamos a filtros: um usuário pode inserir uma role, desde que a role conceda. Se uma role estiver autorizada a acessar um domínio de processo, os usuários associados a essa role poderão entrar nesse domínio de processo.
+
+Agora, a partir desta tabela, podemos ver que o usuário unconfined_u está mapeado para as funções system_r e unconfined_r. Embora não seja evidente aqui, a política SELinux na verdade permite que essas funções executem processos no domínio unconfined_t. Da mesma forma, o usuário sysadm_u está autorizado para a role sysadmr, mas guestu é mapeado para a role guest_r. Cada uma dessas roles terá diferentes domínios autorizados para elas.
+
+Agora, se dermos um passo para trás, também vimos no primeiro fragmento de código que o login padrão mapeia para o usuário unconfined_u, assim como o usuário root mapeia para o usuário unconfined_u. Já que o login ** default_ ** representa qualquer conta de usuário regular do Linux, essas contas serão autorizadas para as roles system_r e unconfined_r também.
+
+Portanto, o que isso realmente significa é que qualquer usuário Linux que mapeie para o usuário unconfined_u terá os privilégios para executar qualquer aplicativo executado dentro do domínio unconfined_t.
+
+Para demonstrar isso, vamos executar o comando id -Z como usuário root:
+
+id -Z
+
+Isso mostra o contexto de segurança SELinux para root:
+
+unconfined_u:unconfined_r:unconfined_t:s0-s0:c0.c1023
+
+Portanto, a conta root é mapeada para o usuário unconfined_u do SELinux, e unconfined_u é autorizado para a role unconfined_r, que por sua vez está autorizado a executar processos no domínio unconfined_t.
+
+
+== Iniciar quatro novas sessões para os 4 usuários, cada um em seu terminal
+
+Para isso precisaremos copiar a chave SSH do root para cada um dos 4 com o root
+
+rsync --archive --chown=regularuser:regularuser ~/.ssh /home/regularuser
+rsync --archive --chown=switcheduser:switcheduser ~/.ssh /home/switcheduser
+rsync --archive --chown=guestuser:guestuser ~/.ssh /home/guestuser
+rsync --archive --chown=restricteduser:restricteduser ~/.ssh /home/restricteduser
+
+Abrir o segundo terminal (o primeiro está com o root) e executar:
+
+ssh regularuser@IP
+
+Abrir o terceiro termina e executar:
+
+ssh switcheduser@IP
+
+O quarto
+
+ssh guestuser@IP
+
+O quinto
+
+ssh restricteduser@IP
+
+Sugerimos que você reserve um tempo agora para iniciar quatro novas sessões SSH com os quatro usuários criados em janelas de terminal separadas para cada um. 
+
+Isso nos ajudará a alternar entre contas diferentes quando necessário.
+
+    • regularuser 
+    • switcheduser 
+    • guestuser 
+    • restricteduser 
+    
+Em seguida, mudamos para a sessão de terminal conectada como usuário regular. Se você se lembra, criamos várias contas de usuário no segundo tutorial, e regularuser foi uma delas. Se ainda não o fez, abra uma janela de terminal separada para conectar ao seu sistema CentOS 8 como usuário regular. Se executarmos o mesmo comando id -Z a partir daí, a saída ficará assim:
+
+[regularuser@localhost ~]$ id -Z
+unconfined_u:unconfined_r:unconfined_t:s0-s0:c0.c1023
+
+Nesse caso, a conta regulauser é mapeada para a conta do usuário SELinux unconfined_u e pode assumir a role unconfined_r. A role pode executar processos em um domínio não confinado. Este é o mesmo usuário/role/domínio SELinux para o qual a conta root também mapeia. Isso porque a política direcionada do SELinux permite que usuários conectados executem em domínios não confinados.
+
+Tínhamos visto a lista de vários usuários do SELinux antes:
+
+    • guest_u: Este usuário não tem acesso ao sistema X-Window (GUI) ou rede e não pode executar o comando su/sudo.
+    • xguest_u: Este usuário tem acesso às ferramentas da GUI e a rede está disponível através do navegador Firefox.
+    • user_u: este usuário tem mais acesso do que as contas de guest (GUI e rede), mas não pode alternar entre usuários executando su ou sudo.
+    • staff_u: Mesmos direitos que user_u, exceto que pode executar o comando sudo para ter privilégios de root.
+    • system_u: este usuário destina-se à execução de serviços do sistema e não deve ser mapeado para contas de usuário regulares.
+SELinux em ação 1: restringindo o acesso de usuário comutado
+
+Para ver como o SELinux pode garantir a segurança das contas de usuário, vamos pensar sobre a conta de usuário regular. Como administrador do sistema, você agora sabe que o usuário possui os mesmos privilégios SELinux irrestritos da conta root e gostaria de mudar isso. Especificamente, você não deseja que o usuário possa alternar para outras contas, incluindo a conta root.
+
+Vamos primeiro verificar a capacidade do usuário de alternar para outra conta. No fragmento de código a seguir, o usuário regular muda para a conta de usuário comutado. Presumimos que ele conheça a senha de usuário comutado:
+
+[regularuser@localhost ~]$ su - switcheduser
+Senha:
+Último login:sáb fev 27 01:28:40 UTC 2021de 138.122.83.11em pts/6
+[switcheduser@centos-selinux ~]$
+
+Em seguida, voltamos para a janela do terminal conectado como usuário root e alteramos o mapeamento de usuário SELinux do usuário regular. Mapearemos regularuser para user_u.
+
+semanage login -a -s user_u regularuser
+
+Então o que estamos fazendo aqui? Estamos adicionando (-a) a conta de usuário regular à conta de usuário do SELinux (-s) user_u. A mudança não terá efeito até que o usuário regular saia e faça login novamente.
+
+Voltando à janela do terminal do regularuser, primeiro mudamos de usuário switcheduser:
+
+[switcheduser@localhost ~]$ logout
+
+Em seguida, o usuário regular também se desconecta:
+
+[regularuser@localhost ~]$ logout
+
+Em seguida, abrimos uma nova janela de terminal para conectar como regularuser. Em seguida, tentamos mudar para switchuser novamente:
+
+[regularuser@localhost ~]$ su - switcheduser
+Password:
+
+Isso é o que vemos agora:
+
+Conseguiu
+
+Se agora executarmos o comando id -Z novamente para ver o contexto SELinux para regularuser, veremos que a saída é bem diferente do que vimos antes: regularuser agora está mapeado para user_u.
+
+[regularuser@localhost ~]$ id -Z
+user_u:user_r:user_t:s0
+
+Então, onde você usaria essas restrições? Você pode pensar em uma equipe de desenvolvimento de aplicativos dentro de sua organização de TI. Você pode ter vários desenvolvedores e testadores nessa equipe, codificando e testando o aplicativo mais recente para sua empresa. Como administrador de sistema, você sabe que os desenvolvedores estão mudando de suas contas para algumas das contas de alto privilégio para fazer alterações em seu servidor. Você pode impedir que isso aconteça restringindo sua capacidade de trocar de conta. (Mas lembre-se, isso ainda não os impede de fazer login diretamente como o usuário com altos privilégios).
+
+SELinux em Ação 2: Restringindo Permissões para Executar Scripts
+
+Vejamos outro exemplo de restrição de acesso do usuário por meio do SELinux. Execute esses comandos a partir da sessão root.
+Por padrão, o SELinux permite que usuários mapeados para a conta guest_t executem scripts a partir de seus diretórios pessoais. Podemos executar o comando getsebool para verificar o valor booleano:
+
+getsebool allow_guest_exec_content
+
+A saída mostra que o sinalizador está ativado.
+
+guest_exec_content --> on
+
+Para verificar seu efeito, vamos primeiro alterar o mapeamento do usuário SELinux para a conta guestuser que criamos no início deste tutorial. Faremos isso como usuário root.
+
+semanage login -a -s guest_u guestuser
+Nome de usuário      Usuário do SELinux   Intervalo MLS/MCS    Serviço
+
+__default__          unconfined_u         s0-s0:c0.c1023       *
+regularuser          user_u               s0                   *
+root                 unconfined_u         s0-s0:c0.c1023       *
+
+Podemos verificar a ação executando o comando:
+
+semanage login -l
+
+Como podemos ver, guestuser agora está mapeado para a conta de usuário guest_u SELinux.
+
+Nome de usuário      Usuário do SELinux   Intervalo MLS/MCS    Serviço
+
+__default__          unconfined_u         s0-s0:c0.c1023       *
+regularuser          user_u               s0                   *
+root                 unconfined_u         s0-s0:c0.c1023       *
+
+Se tivermos uma janela de terminal aberta como usuário guestuser, sairemos dela e faremos o logon novamente em uma nova janela de terminal como usuário guestuser.
+
+A seguir, criaremos um script bash extremamente simples no diretório inicial do usuário. Os blocos de código a seguir verificam primeiro o diretório inicial, depois criam o arquivo e o lêem no console. Finalmente, a permissão de execução é alterada.
+
+Verifique se você está no diretório inicial do usuário convidado:
+
+[guestuser@localhost ~]$ pwd
+/home/guestuser
+
+Criar o script
+
+[guestuser@localhost ~]$ 
+nano myscript.sh
+
+#!/bin/bash
+echo "This is a test script"
+
+chmod u+x myscript.sh
+
+Quando tentamos executar o script como usuário guestuser, ele funciona conforme o esperado:
+
+[guestuser@localhost ~]$ ~/myscript.sh
+
+Este é um script de teste
+
+Em seguida, voltamos para a janela do terminal root e alteramos a configuração booleana allow_guest_exec_content para off e verificamos:
+
+setsebool allow_guest_exec_content off
+getsebool allow_guest_exec_content
+
+guest_exec_content --> off
+
+Voltando ao console logado como usuário guestuser, tentamos executar o script novamente. Desta vez, o acesso é negado:
+
+[guestuser@localhost ~]$ ~/myscript.sh
+Executou
+
+Portanto, é assim que o SELinux pode aplicar uma camada adicional de segurança sobre o DAC. Mesmo quando o usuário tem acesso total de leitura, gravação e execução ao script criado em seu próprio diretório inicial, ele ainda pode ser impedido de executá-lo. Onde você precisa disso? Bem, pense em um sistema em produção. Você sabe que os desenvolvedores têm acesso a ele, assim como alguns dos contratados que trabalham para sua empresa. Você gostaria que eles acessassem o servidor para visualizar mensagens de erro e arquivos de log, mas não deseja que executem scripts de shell. Para fazer isso, você pode primeiro habilitar o SELinux e, em seguida, garantir que o valor booleano correspondente seja definido.
+
+Falaremos sobre as mensagens de erro do SELinux em breve, mas por enquanto, se estivermos ansiosos para ver onde essa negação foi registrada, podemos olhar o arquivo /var/log/messages. Execute a partir da sessão raiz:
+
+grep "SELinux is preventing" /var/log/messages
+
+As duas últimas mensagens no arquivo em nosso servidor CentOS 8 mostram a negação de acesso:
+
+Feb 27 01:33:02 centos-selinux setroubleshoot[2790]: SELinux is preventing su from 'read, write' accesses on the file lastlog. For complete SELinux messages run: sealert -l 19b0358f-2da3-4af7-ada0-5623af80fb86
+Feb 27 01:33:02 centos-selinux setroubleshoot[2790]: SELinux is preventing su from 'read, write' accesses on the file lastlog.#012#012*****  Plugin catchall (100. confidence) suggests   **************************#012#012If you believe that su should be allowed read write access on the lastlog file by default.#012Then you should report this as a bug.#012You can generate a local policy module to allow this access.#012Do#012allow this access for now by executing:#012# ausearch -c 'su' --raw | audit2allow -M my-su#012# semodule -X 300 -i my-su.pp#012
+
+A mensagem também mostra um valor de ID longo e sugere que executemos o comando sealert com esse ID para obter mais informações. O seguinte comando mostra isso (use seu próprio ID de alerta):
+
+sealert -l 19b0358f-2da3-4af7-ada0-5623af80fb86
+
+E, de fato, a saída nos mostra mais detalhes sobre o erro:
+
+SELinux is preventing /usr/bin/bash from execute access on the file .
+
+*****  Plugin catchall_boolean (89.3 confidence) suggests   ******************
+
+If you want to allow guest to exec content
+Then you must tell SELinux about this by enabling the 'guest\_exec\_content' boolean.
+You can read 'None' man page for more details.
+Do
+setsebool -P guest\_exec\_content 1
+
+*****  Plugin catchall (11.6 confidence) suggests   **************************
+
+...
+
+É uma grande quantidade de saída, mas observe as poucas linhas no início:
+
+O SELinux está impedindo que /usr/bin/bash execute o acesso ao arquivo. Isso nos dá uma boa ideia de onde o erro está vindo.
+As próximas linhas também mostram como corrigir o erro:
+
+Se você quiser permitir que convidados/guest possam executar conteúdo, então você deve informar o SELinux sobre isso habilitando o booleano 'guest\_exec\_content'.
+...
+setsebool -P guest\_exec\_content 1
+
+SELinux em ação 3: restringindo o acesso aos serviços
+
+Na primeira parte desta série, falamos sobre as roles do SELinux quando introduzimos a terminologia básica de usuários, funções, domínios e tipos. Vamos agora ver como as roles também desempenham um papel na restrição do acesso do usuário. Como dissemos antes, uma role/função no SELinux fica entre o usuário e o domínio do processo e controla em quais domínios o processo do usuário pode entrar. As roles não são tão importantes quando as vemos em contextos de segurança de arquivos. Para arquivos, é listado com um valor genérico de object_r. As roles se tornam importantes ao lidar com usuários e processos.
+
+Vamos primeiro ter certeza de que o daemon httpd não está rodando no sistema. Como usuário root, você pode executar o seguinte comando para garantir que o processo seja interrompido:
+
+systemctl stop httpd
+
+Em seguida, mudamos para a janela do terminal em que efetuamos login como restricteduser e tentamos ver o contexto de segurança do SELinux para ele. Se a janela do terminal não estiver aberta, inicie uma nova sessão de terminal no sistema e faça login como a conta de restricteduser que criamos no início deste tutorial.
+
+[restricteduser@localhost ~]$ id -Z
+unconfined_u:unconfined_r:unconfined_t:s0-s0:c0.c1023
+
+Portanto, a conta tem o comportamento padrão de execução como usuário unconfined_u e tendo acesso à role unconfined_r. No entanto, esta conta não tem o direito de iniciar nenhum processo no sistema. O seguinte bloco de código mostra que o restricteduser está tentando iniciar o daemon httpd e obtendo um erro de acesso negado:
+
+[restricteduser@localhost ~]$ systemctl start  httpd
+systemctl start  httpd
+==== AUTHENTICATING FOR org.freedesktop.systemd1.manage-units ====
+É necessária autenticação para iniciar 'httpd.service'.
+Authenticating as: root
+Password: 
+
+Em seguida, voltamos para a janela do terminal do usuário root e nos certificamos de que a conta de restricteduser foi adicionada ao arquivo /etc/sudoers. Esta ação permitirá que a conta de usuário restrito use privilégios de root.
+
+visudo
+
+Adicionar
+restricteduser ALL=(ALL)      ALL
+
+Se sairmos da janela de terminal de restricteduser e fizermos login novamente, podemos iniciar e parar o serviço httpd com privilégios sudo:
+
+[restricteduser@localhost ~]$ sudo systemctl start  httpd
+
+Acreditamos que você tenha recebido a leitura usual do Sistema local
+Administrador. Geralmente se resume a estas três coisas:
+
+     # 1) Respeite a privacidade dos outros.
+     # 2) Pense antes de digitar.
+     # 3) Com grande poder vem grande responsabilidade.
+     
+[sudo] password for restricteduser:
+
+O usuário também pode interromper o serviço agora:
+
+[restricteduser@localhost ~]$ sudo systemctl stop  httpd
+
+Isso é muito normal: os administradores do sistema dão acesso ao sudo a contas de usuário em que confiam. Mas e se você quiser impedir que esse usuário específico inicie o serviço httpd mesmo quando a conta do usuário estiver listada no arquivo sudoers?
+
+Para ver como isso pode ser alcançado, vamos voltar para a janela do terminal do usuário root e mapear o restricteduser para a conta user_r SELinux. Isso é o que fizemos para a conta regulauser em outro exemplo.
+
+semanage login -a -s user_u restricteduser
+
+Voltando à janela do terminal do restricteduser, fazemos logout e entramos novamente em uma nova sessão de terminal como restricteduser.
+Agora que o restricteduser foi restringido a user_u (e isso significa a role user_r e domínio user_t), podemos verificar seu acesso usando o comando seinfo da janela de nosso usuário root:
+
+seinfo -uuser_u -x
+
+Users: 1
+   user user_u roles user_r level s0 range s0;
+         
+Indo um passo adiante, podemos executar o comando seinfo para verificar quais domínios a role user_r está autorizada a entrar:
+
+seinfo -ruser_r -x
+
+Existem vários domínios que o user_r está autorizado a entrar:
+
+Users: 1
+   user user_u roles user_r level s0 range s0;
+[root@centos-selinux ~]# seinfo -ruser_r -x
+
+Roles: 1
+   role user_r types { gstreamer_home_t obex_t ssh_t qmail_inject_t mpd_home_t thumb_t dbus_home_t telepathy_mission_control_data_home_t newrole_t telepathy_salut_t vmware_conf_t mplayer_home_t sandbox_web_t telepathy_sunshine_t polipo_config_home_t user_fonts_t sandbox_xserver_t telepathy_gabble_cache_home_t sandbox_min_t telepathy_sunshine_home_t thumb_home_t telepathy_mission_control_cache_home_t user_mail_t rlogind_home_t user_gkeyringd_t xau
+            ...
+
+Mas esta lista mostra httpd_t como um dos domínios? Vamos tentar o mesmo comando com um filtro:
+
+seinfo -ruser_r -x | grep httpd
+
+Existem vários domínios relacionados a httpd aos quais a role tem acesso, mas httpd_t não é um deles:
+
+Tomando este exemplo então, se a conta de usuário restrito tentar iniciar o daemon httpd, o acesso deve ser negado porque o processo httpd é executado dentro do domínio httpd_t e este não é um dos domínios que a role user_r está autorizada a acessar. E sabemos que user_u (mapeado para strictuser) pode assumir a função user_r. Isso deve falhar mesmo se a conta de restrictuser tiver o privilégio sudo concedido.
+
+Voltando à janela do terminal da conta do restrictuser, tentamos iniciar o daemon httpd agora (fomos capazes de interrompê-lo antes porque a conta recebeu o privilégio sudo):
+
+[restricteduser@localhost ~]$ sudo service httpd start
+
+O acesso funcionou
+
+Portanto, há outro exemplo de como o SELinux pode funcionar como uma porteira.
+
+Logs de auditoria SELinux
+
+Como administrador do sistema, você estaria interessado em consultar as mensagens de erro registradas pelo SELinux. Essas mensagens são registradas em arquivos específicos e podem fornecer informações detalhadas sobre negações de acesso. Em um sistema CentOS 8, você pode ver dois arquivos:
+
+    • /var/log/audit/audit.log
+    • /var/log/messages
+    
+Esses arquivos são preenchidos pelo daemon auditd e pelo daemon rsyslogd, respectivamente. Então, o que esses daemons fazem? As páginas do manual dizem que o daemon auditd é o componente do espaço do usuário do sistema de auditoria Linux e rsyslogd é o utilitário do sistema que fornece suporte para registro de mensagens. Simplificando, esses daemons registram mensagens de erro nesses dois arquivos.
+
+O arquivo /var/log/audit/audit.log será usado se o daemon auditd estiver em execução. O arquivo /var/log/messages será usado se auditd for interrompido e rsyslogd estiver em execução. Se os dois daemons estiverem em execução, os dois arquivos serão usados: /var/log/audit/audit.log registra informações detalhadas enquanto uma versão fácil de ler é mantida em /var/log/messages.
+
+Decifrando Mensagens de Erro SELinux
+
+Vimos uma mensagem de erro do SELinux em uma seção anterior (consulte “SELinux em Ação 2: Restringindo Permissões para Executar Scripts”). Estávamos então usando o comando grep para vasculhar o arquivo /var/log/messages. Felizmente, o SELinux vem com algumas ferramentas para tornar a vida um pouco mais fácil do que isso. Essas ferramentas não são instaladas por padrão e requerem a instalação de alguns pacotes, que você deve ter instalado na primeira parte deste tutorial.
+
+O primeiro comando é ausearch. Podemos usar este comando se o daemon auditd estiver rodando. No trecho de código a seguir, estamos tentando examinar todas as mensagens de erro relacionadas ao daemon httpd. Certifique-se de estar em sua conta root:
+
+ausearch -m avc -c httpd
+
+Em nosso sistema, várias entradas foram listadas, mas vamos nos concentrar na última:
+
+----
+time->Sat Feb 27 00:51:16 2021
+type=PROCTITLE msg=audit(1614387076.440:160): proctitle=2F7573722F7362696E2F6874747064002D44464F524547524F554E44
+type=SYSCALL msg=audit(1614387076.440:160): arch=c000003e syscall=4 success=no exit=-13 a0=7f401000a928 a1=7f401e7f37b0 a2=7f401e7f37b0 a3=7f401e7f44f0 items=0 ppid=1648 pid=1652 auid=4294967295 uid=48 gid=48 euid=48 suid=48 fsuid=48 egid=48 sgid=48 fsgid=48 tty=(none) ses=4294967295 comm="httpd" exe="/usr/sbin/httpd" subj=system_u:system_r:httpd_t:s0 key=(null)
+type=AVC msg=audit(1614387076.440:160): avc:  denied  { getattr } for  pid=1652 comm="httpd" path="/var/www/html/index.html" dev="vda1" ino=29360468 scontext=system_u:system_r:httpd_t:s0 tcontext=unconfined_u:object_r:var_t:s0 tclass=file permissive=0
+----
+time->Sat Feb 27 00:51:16 2021
+type=PROCTITLE msg=audit(1614387076.440:161): proctitle=2F7573722F7362696E2F6874747064002D44464F524547524F554E44
+type=SYSCALL msg=audit(1614387076.440:161): arch=c000003e syscall=6 success=no exit=-13 a0=7f401000aa08 a1=7f401e7f37b0 a2=7f401e7f37b0 a3=1 items=0 ppid=1648 pid=1652 auid=4294967295 uid=48 gid=48 euid=48 suid=48 fsuid=48 egid=48 sgid=48 fsgid=48 tty=(none) ses=4294967295 comm="httpd" exe="/usr/sbin/httpd" subj=system_u:system_r:httpd_t:s0 key=(null)
+type=AVC msg=audit(1614387076.440:161): avc:  denied  { getattr } for  pid=1652 comm="httpd" path="/var/www/html/index.html" dev="vda1" ino=29360468 scontext=system_u:system_r:httpd_t:s0 tcontext=unconfined_u:object_r:var_t:s0 tclass=file permissive=0
+----
+time->Sat Feb 27 00:51:22 2021
+type=PROCTITLE msg=audit(1614387082.762:162): proctitle=2F7573722F7362696E2F6874747064002D44464F524547524F554E44
+type=SYSCALL msg=audit(1614387082.762:162): arch=c000003e syscall=4 success=no exit=-13 a0=557416435788 a1=7f40227fb7b0 a2=7f40227fb7b0 a3=7f40227fc4f0 items=0 ppid=1648 pid=1652 auid=4294967295 uid=48 gid=48 euid=48 suid=48 fsuid=48 egid=48 sgid=48 fsgid=48 tty=(none) ses=4294967295 comm="httpd" exe="/usr/sbin/httpd" subj=system_u:system_r:httpd_t:s0 key=(null)
+type=AVC msg=audit(1614387082.762:162): avc:  denied  { getattr } for  pid=1652 comm="httpd" path="/var/www/html/index.html" dev="vda1" ino=29360468 scontext=system_u:system_r:httpd_t:s0 tcontext=unconfined_u:object_r:var_t:s0 tclass=file permissive=0
+
+Mesmo administradores de sistema experientes podem ficar confusos com mensagens como essa, a menos que saibam o que estão procurando. Para entender isso, vamos separar cada um dos campos:
+
+    • type = AVC e avc: AVC significa Access Vector Cache. O SELinux armazena em cache as decisões de controle de acesso para recursos e processos. Esse cache é conhecido como Access Vector Cache (AVC). É por isso que as mensagens de negação de acesso do SELinux também são conhecidas como “negações de AVC”. Esses dois campos de informação indicam que a entrada vem de um registro AVC e é um evento AVC.
+    • denied {getattr}: A permissão que foi tentada e o resultado obtido. Neste caso, a operação get attribute foi negada.
+    • pid = 10204. Esta é a identificação do processo que tentou o acesso.
+    • comm: O id do processo por si só não significa muito. O atributo comm mostra o comando do processo. Nesse caso, é httpd. Imediatamente sabemos que o erro está vindo do servidor da web.
+    • path: a localização do recurso que foi acessado. Neste caso, é um arquivo em /www/html/index.html.
+    • dev e ino: O dispositivo onde reside o recurso de destino e seu endereço inode.
+    • scontext: O contexto de segurança do processo. Podemos ver que a fonte está sendo executada no domínio httpd_t.
+    • tcontext: O contexto de segurança do recurso de destino. Neste caso, o tipo de arquivo é default_t.
+    • tclass: A classe do recurso de destino. Neste caso, é um arquivo.
+
+Se você olhar com atenção, o domínio do processo é httpd_t e o contexto do tipo de arquivo é default_t. Uma vez que o daemon httpd é executado em um domínio confinado e a política SELinux estipula que este domínio não tem nenhum acesso a arquivos com o tipo default_t, o acesso foi negado.
+
+Já vimos a ferramenta sealert. Este comando pode ser usado com o valor de id da mensagem de erro registrada no arquivo /var/log/messages.
+No fragmento de código a seguir, examinamos novamente o arquivo /var/log/message em busca de erros relacionados ao SELinux:
+
+cat /var/log/messages | grep "SELinux is preventing" | less
+
+Em nosso sistema, examinamos o último erro. Este é o erro que foi registrado quando nosso usuário restrito tentou executar o daemon httpd:
+
+...
+Feb 27 00:51:24 centos-selinux setroubleshoot[1869]: SELinux is preventing /usr/sbin/httpd from getattr access on the file /var/www/html/index.html. For complete SELinux messages run: sealert -l 22d339ae-4c6d-4b37-b8f1-23fe72295c29
+...
+
+Conforme sugerido, executamos o sealert com o valor de ID e pudemos ver os detalhes (seu valor de ID deve ser exclusivo para o seu sistema):
+
+sealert -l 22d339ae-4c6d-4b37-b8f1-23fe72295c29 | less
+
+O SELinux está impedindo que o /usr/sbin/httpd acesse o getattr no arquivo /var/www/html/index.html.
+
+*****  Plugin restorecon (confiança 94.8) sugere  ****************************
+
+Se você quiser consertar o rótulo.$TARGETO rótulo padrão _PATH deve ser httpd_sys_content_t.
+Entãovocê pode executar o restorecon. A tentativa de acesso pode ter sido interrompida devido a permissões insuficientes para acessar um diretório pai. Nesse caso, tente alterar o seguinte comando de acordo.
+Faça
+# /sbin/restorecon -v /var/www/html/index.html
+
+*****  Plugin catchall_labels (confiança 5.21) sugere  ***********************
+
+Se você quer permitir que httpd tenha acesso getattr no index.html file
+Entãovocê precisará mudar o rótulo em /var/www/html/index.html
+Faça
+# semanage fcontext -a -t FILE_TYPE '/var/www/html/index.html'
+...
+
+Vimos como as primeiras linhas da saída de sealert nos contam sobre as etapas de remediação. No entanto, se olharmos agora perto do final do fluxo de saída, podemos ver a seção “Raw Audit Messages”. A entrada aqui vem do arquivo audit.log, que discutimos anteriormente, portanto, você pode usar essa seção para ajudá-lo a interpretar a saída aqui.
+
+Segurança multinível
+
+A segurança multinível ou MLS é a parte refinada de um contexto de segurança SELinux.
+
+Até agora, em nossa discussão sobre contextos de segurança para processos, usuários ou recursos, falamos sobre três atributos: usuário SELinux, roles SELinux e tipos ou domínio SELinux. O quarto campo do contexto de segurança mostra a sensibilidade e, opcionalmente, a categoria do recurso.
+
+Para entender isso, vamos considerar o contexto de segurança do arquivo de configuração do daemon de vsFTPd:
+
+ls -Z /etc/vsftpd/vsftpd.conf
+
+O quarto campo do contexto de segurança mostra uma sensibilidade de s0.
+
+system_u:object_r:etc_t:s0 /etc/vsftpd/vsftpd.conf
+
+Sensibilidade
+
+A sensibilidade faz parte do mecanismo hierárquico de segurança multinível. Por hierarquia, queremos dizer que os níveis de sensibilidade podem ser cada vez mais profundos para um conteúdo mais seguro no sistema de arquivos. O nível 0 (representado por s0) é o nível de sensibilidade mais baixo, comparável ao "public". Pode haver outros níveis de sensibilidade com valores de s mais altos: por exemplo, interno, confidencial ou regulatório podem ser representados por s1, s2 e s3 respectivamente. Este mapeamento não é estipulado pela política: os administradores do sistema podem configurar o que cada nível de sensibilidade significa.
+
+Quando um sistema habilitado para SELinux usa MLS para seu tipo de política (configurado no arquivo /etc/selinux/config), ele pode marcar certos arquivos e processos com certos níveis de sensibilidade. O nível mais baixo é chamado de “current sensitivity/sensibilidade corrente” e o nível mais alto é chamado de “clearance sensitivity/sensibilidade de depuração”.
+
+Andando de mãos dadas com a sensibilidade está a categoria do recurso, representada por c. As categorias podem ser consideradas como rótulos atribuídos a um recurso. Exemplos de categorias podem ser nomes de departamentos, nomes de clientes, projetos, etc. O objetivo da categorização é aprimorar o controle de acesso. Por exemplo, você pode marcar certos arquivos com sensibilidade confidencial para usuários de dois departamentos internos diferentes.
+
+Para contextos de segurança SELinux, a sensibilidade e a categoria trabalham juntas quando uma categoria é implementada. Ao usar uma gama de níveis de sensibilidade, o formato deve mostrar os níveis de sensibilidade separados por um hífen (por exemplo, s0-s2). Ao usar uma categoria, um intervalo é mostrado com um ponto no meio. Os valores de sensibilidade e categoria são separados por dois pontos (:).
+
+Aqui está um exemplo de par de sensibilidade/categoria:
+
+system_u:object_r:etc_t:s0
+
+Há apenas um nível de sensibilidade aqui e é s0. O nível de categoria também pode ser escrito como c0-c2.
+
+Então, onde você atribui seus níveis de categoria? Vamos encontrar os detalhes do arquivo
+
+/etc/selinux/targeted/setrans.conf
+
+cat /etc/selinux/targeted/setrans.conf
+
+#
+# Multi-Category Security translation table for SELinux
+# 
+# Uncomment the following to disable translation libary
+# disable=1
+#
+# Objects can be categorized with 0-1023 categories defined by the admin.
+# Objects can be in more than one category at a time.
+# Categories are stored in the system as c0-c1023.  Users can use this
+# table to translate the categories into a more meaningful output.
+# Examples:
+# s0:c0=CompanyConfidential
+# s0:c1=PatientRecord
+# s0:c2=Unclassified
+# s0:c3=TopSecret
+# s0:c1,c3=CompanyConfidentialRedHat
+s0=SystemLow
+s0-s0:c0.c1023=SystemLow-SystemHigh
+s0:c0.c1023=SystemHigh
+
+Não entraremos em detalhes sobre sensibilidades e categorias aqui. Saiba apenas que um processo tem acesso de leitura permitido a um recurso apenas quando sua sensibilidade e nível de categoria são maiores do que os do recurso (ou seja, o domínio do processo domina o tipo de recurso). O processo pode gravar no recurso quando seu nível de sensibilidade/categoria for inferior ao do recurso.
+
+Conclusão
+
+Tentamos cobrir um amplo tópico sobre a segurança do Linux no curto período desta série de três partes. Se olharmos para nosso sistema agora, temos um servidor web Apache simples instalado com seu conteúdo sendo servido a partir de um diretório personalizado. Também temos um daemon FTP rodando em nosso servidor. Alguns usuários criados tiveram acesso restrito. À medida que avançávamos, usamos pacotes, arquivos e comandos SELinux para atender às nossas necessidades de segurança. Ao longo do caminho, também aprendemos como examinar as mensagens de erro do SELinux e entendê-las.
+
+Livros inteiros foram escritos sobre o tópico SELinux e você pode passar horas tentando descobrir diferentes pacotes, arquivos de configuração, comandos e seus efeitos na segurança. Então para onde você vai a partir daqui?
+
+Uma coisa que eu faria seria avisá-lo para não testar nada em um sistema de produção. Depois de dominar o básico, comece a brincar com o SELinux habilitando-o em uma réplica de teste da sua caixa de produção. Certifique-se de que os daemons de auditoria estejam em execução e fique de olho nas mensagens de erro. Verifique todas as negações que impedem o início dos serviços. Brinque com as configurações booleanas. Faça uma lista das etapas possíveis para proteger seu sistema, como criar novos usuários mapeados para contas SELinux com menos privilégios ou aplicar o contexto correto a locais de arquivo não padrão. Entenda como decifrar um log de erros. Verifique as portas para vários daemons: se portas não padrão forem usadas, certifique-se de que estejam corretamente atribuídas à política.
+
+Tudo virá junto com o tempo e a prática. :)
+
+https://www.digitalocean.com/community/tutorial_series/an-introduction-to-selinux-on-centos-7
+
+Licença
+
+This work is licensed under a Creative Commons Attribution-NonCommercial-ShareAlike 4.0 International License. 
+https://creativecommons.org/licenses/by-nc-sa/4.0/
+
+
+== Agora então 
+
+Instalar o restante do AMP e configurar liberando devidamente no SELinux
+
+Apache
+MySQL
+PHP
+fail2ban
+
+Wordpress, ver CentOS8.3/6Wordpress
+Usando user com privilégios restritos sobre o banco.
+
+Não instalar o mod-security, pois parece redundante com o SELinux.
+

@@ -1,0 +1,114 @@
+Reflexões sobre segurança na web
+
+Um aspecto importante: o sistema operacional do seu servidor pode ser ultra "seguro", mas se você usar um CMS vulnerável mal configurado, algo ainda pode controlar o seu webroot. Talvez não o resto do sistema, mas todos os clientes podem ser phishing independentemente.
+
+Se você estiver usando WordPress ou Drupal ou qualquer outro CMS, suas vulnerabilidades estarão lá. É aí que está a complexidade e isso se combina com a superfície exposta. Se você puder, use um gerador de site estático. Mas se você não puder, fique por dentro dos patches de segurança mais recentes para o CMS de sua escolha.
+
+Quer dizer em termos de dificuldade de invasão, em termos de protestar contra sua rede, proteger seus dados, proteger seu código ...?
+
+Uma opção é uma distribuição baseada em contêiner. Se o seu servidor web for executado em um contêiner, talvez um contêiner de distro completo, ele poderá ficar mais isolado do host e do restante da rede.
+
+Não se esqueça dos backups completos e incrementais de geração que permitem uma recuperação e restauração em um momento específico para proteger sua operação, se isso for importante.
+
+OpenBSD. Não exatamente Linux, mas também não TÃO diferente.
+
+Mais:
+
+     Assistir aos avisos de segurança
+     Instalar patches
+     Use um firewall e um IDS
+     Desative todos os serviços e contas de que você não precisa
+     Observe os arquivos de registro (veja também o número 3)
+     Outras práticas de segurança
+     
+Virtualização?     
+
+Quanto ao OpenBSD, não é um sistema operacional comum. Ao contrário do GNU/Linux ou mesmo do FreeBSD, seu público-alvo é ele mesmo, sua própria equipe de desenvolvedores. Além disso, ao contrário do GNU / Linux e, até certo ponto, do FreeBSD, eles tratam a documentação seriamente e um bug na documentação é tratado com o mesmo vigor que um potencial problema de segurança. No entanto, espera-se que todos os que o usam sejam capazes de ler a documentação e descobrir as coisas por conta própria. Isso faz parte do acordo. Com base em suas perguntas até agora, o FreeBSD pode ser mais apropriado.
+
+A primeira parte do vídeo apresenta uma boa pesquisa sobre alguns desenvolvimentos em que o sistema operacional liderou em certas melhorias. Mais perto do meio, ele tem uma boa visão geral de vários projetos derivados do desenvolvimento do OpenBSD. Em seguida, ele percorre a instalação passo a passo, que leva apenas alguns minutos, mesmo com comentários em execução. Depois disso, existem algumas tarefas básicas de administração do sistema e uma orientação geral do sistema. https://blog.lambda.cx/posts/openbsd-introduction-talk/
+
+Você percebe que depende de você proteger o seu servidor web (ou qualquer tipo de servidor)? E, só porque é seguro hoje, precisará que ser mantido ao longo do tempo para mantê-lo seguro?
+
+O servidor é uma parte disso.
+Seus desenvolvedores da web também terão que fazer sua parte para manter o servidor seguro.
+
+Adicionar um CMS como o WordPress, por exemplo, baixará o OpenBSD, o FreeBSD e qualquer distribuição GNU / Linux para o mesmo nível.
+
+A resposta mais pura é "nenhum deles é seguro", mas alguns são mais focados na segurança do que outros.
+
+A resposta mais útil e correta é "a única distribuição que é segura é aquela que um administrador inteligente e informado garantiu para os fins que ele / ela requer e contra a gama específica de ameaças que eles enfrentam em seu uso e ambiente específicos no momento " O tempo não pára. A segurança só é o que você tem se praticá-la todos os dias.
+
+Sem conhecer você, seu treinamento e experiência, seu uso específico, seu ambiente de ameaças, seu hardware e sua finalidade, não há como dar uma resposta correta completa e abrangente. (De qualquer forma, isso exigiria alguns livros de texto para você comunicar e mais alguns livros de teste para elaborarmos uma resposta, e pode muito bem estar obsoleto antes de terminarmos.)
+
+Podemos sugerir alguns lugares por onde começar e, na verdade, algumas pessoas inteligentes já o fizeram.
+Se eu pudesse acrescentar: não importa a distribuição que você usa, abra apenas os serviços de que você realmente precisa, proteja-os tanto quanto possível. O Linux raramente é hackeado diretamente, o ataque aproveita o serviço aberto para dar acesso. Negue o acesso e você evita o hack.
+
+Além disso, observe seus serviços e sua rede no nível do gateway/roteador. Se você puder restringir o acesso à rede a um serviço apenas às sub-redes às quais deseja ter acesso, você impedirá que o resto do mundo use esse acesso para comprometer o sistema.
+
+Se você deve abrir o acesso ao mundo, ASSUME que você pode ser hackeado e não apenas se proteger contra isso, mas adicionar detecção e reação ao seu site para que, depois de hackeado, você SAIBA e possa reagir à ameaça. (Detecção de intrusão é o termo para pesquisar.)
+
+https://www.linuxquestions.org/questions/linux-distributions-5/which-linux-distro-is-most-secure-for-a-web-server-4175681602/
+
+https://www.parrotsec.org/download-security.php
+https://www.openwall.com/Owl/
+https://www.alpinelinux.org/
+https://www.devuan.org/
+https://ubuntu.com/download/server
+
+https://www.kali.org/downloads/ - testes e monitoramento
+
+Containers
+
+https://rancher.com/products/rancher/
+
+https://www.projectatomic.io/
+
+
+Os contêineres do Linux, em resumo, contêm aplicativos de uma forma que os mantém isolados do sistema host em que são executados. Os contêineres permitem que um desenvolvedor empacote um aplicativo com todas as partes de que precisa, como bibliotecas e outras dependências, e envie tudo como um pacote. E são projetados para facilitar o fornecimento de uma experiência consistente à medida que os desenvolvedores e administradores de sistema movem o código dos ambientes de desenvolvimento para a produção de forma rápida e replicável.
+
+Resumo de tecnologia:
+Aprenda a proteger sua plataforma de contêiner
+através da pilha
+De certa forma, os contêineres se comportam como uma máquina virtual. Para o mundo exterior, eles podem parecer o seu próprio sistema completo. Mas, ao contrário de uma máquina virtual, em vez de criar um sistema operacional virtual completo, os contêineres não precisam replicar um sistema operacional inteiro, apenas os componentes individuais de que precisam para operar. Isso dá um aumento significativo no desempenho e reduz o tamanho do aplicativo. Eles também operam muito mais rápido, pois, ao contrário da virtualização tradicional, o processo é essencialmente executado de forma nativa em seu host, apenas com uma camada adicional de proteção ao redor dele.
+
+E o mais importante, muitas das tecnologias que impulsionam a tecnologia de contêineres são de código aberto. Isso significa que eles têm uma ampla comunidade de colaboradores, ajudando a promover o rápido desenvolvimento de um amplo ecossistema de projetos relacionados que atendem às necessidades de todos os tipos de organizações diferentes, grandes e pequenas.
+Por que existe tanto interesse em contêineres?
+
+Sem dúvida, um dos maiores motivos para o interesse recente na tecnologia de contêineres foi o projeto de código aberto Docker, uma ferramenta de linha de comando que tornava a criação e o trabalho com contêineres fácil para desenvolvedores e administradores de sistemas, da mesma forma que o Vagrant tornou mais fácil para os desenvolvedores explore máquinas virtuais facilmente.
+
+Docker é uma ferramenta de linha de comando para definir programaticamente o conteúdo de um contêiner Linux no código, que pode então ser versionado, reproduzido, compartilhado e modificado facilmente, como se fosse o código-fonte de um programa.
+
+Os contêineres também despertaram o interesse na arquitetura de microsserviço, um padrão de design para o desenvolvimento de aplicativos nos quais aplicativos complexos são divididos em peças menores e composíveis que funcionam juntas. Cada componente é desenvolvido separadamente, e o aplicativo é simplesmente a soma de seus componentes constituintes. Cada peça, ou serviço, pode residir dentro de um contêiner e ser escalonada independentemente do resto do aplicativo conforme a necessidade.
+Como faço para orquestrar contêineres?
+
+Simplesmente colocar seus aplicativos em contêineres provavelmente não criará uma mudança fenomenal na forma como sua organização opera, a menos que você também mude a forma como você implanta e gerencia esses contêineres. Um sistema popular para gerenciar e organizar contêineres Linux é o Kubernetes.
+
+[Baixe nosso Containers Primer]
+
+Kubernetes é um sistema de código aberto para gerenciar clusters de contêineres. Para fazer isso, ele fornece ferramentas para implantação de aplicativos, escalonamento desses aplicativos conforme necessário, gerenciamento de alterações em aplicativos existentes em contêineres e ajuda a otimizar o uso do hardware subjacente sob seus contêineres. Ele é projetado para ser extensível, bem como tolerante a falhas, permitindo que os componentes do aplicativo sejam reiniciados e movidos pelos sistemas conforme necessário.
+
+Ferramentas de automação de TI, como Ansible, e projetos de plataforma como serviço, como OpenShift, podem adicionar recursos para facilitar o gerenciamento de contêineres.
+Como faço para manter os contêineres seguros?
+
+O contêiner adiciona segurança isolando aplicativos de outros aplicativos em um sistema operacional host, mas simplesmente colocar um aplicativo em contêiner não é suficiente para mantê-lo seguro. Dan Walsh, um especialista em segurança de computador conhecido por seu trabalho no SELinux, explica algumas das maneiras que os desenvolvedores estão trabalhando para garantir que o Docker e outras ferramentas de contêiner estejam garantindo a segurança dos contêineres, bem como alguns dos recursos de segurança atualmente dentro do Docker, e como eles funcionam.
+
+
+Disables XML-RPC to help prevent DDoS and other brute force attacks.
+
+--------------
+Com a prevalência significativa de servidores da Web Linux em todo o mundo, a segurança é frequentemente apresentada como um ponto forte da plataforma para esse propósito. No entanto, um servidor web baseado em Linux é tão seguro quanto sua configuração e, muitas vezes, muitos são bastante vulneráveis ​​a comprometimento. Embora as configurações específicas variem enormemente devido aos ambientes ou uso específico, existem várias etapas gerais que podem ser executadas para garantir que as considerações básicas de segurança estejam em vigor.
+Muitos riscos são possíveis de um comprometimento, incluindo o uso do servidor da web em uma fonte de malware, a criação de uma retransmissão de envio de spam, um proxy da web ou TCP ou outra atividade maliciosa. O sistema operacional e os pacotes podem ser totalmente corrigidos com atualizações de segurança e o servidor ainda pode ser comprometido com base puramente em uma configuração de segurança ruim.
+A segurança dos aplicativos da web começa primeiro com a configuração do próprio servidor, tendo em mente a segurança estrita. Muitos irão frequentemente implantar várias camadas, como WAF, IDS ou Mod Security para reagir em tempo real a vários hackers e ameaças para solicitações HTTP. No entanto, proteger todo o servidor e todos os serviços em execução com um alto nível de segurança em mente é a primeira etapa fundamental para evitar o risco de ser invadido ou comprometido.
+Com a abundância de malware sendo instalado em aplicativos da web hospedados em servidores baseados em Linux (como as muitas vulnerabilidades recentes do plugin timthumb.php WordPress), é claro que muitos servidores são configurados com pouca ou nenhuma segurança em mente. Para usuários de blogs pessoais, um compromisso costuma ser uma vergonha e um inconveniente. No entanto, para pequenas e grandes empresas, ter um site ou blog de sua empresa exibindo malware de um comprometimento é uma perda de negócios e cria um reflexo muito pobre dos serviços de TI da sua empresa para o público, bem como para clientes em potencial.
+Os servidores da web que estão comprometidos e veiculam malware frequentemente são sinalizados muito rapidamente na lista de Navegação segura do Google, que a maioria dos principais navegadores assinam. Quando sinalizado, geralmente 24 horas ou mais são necessários para limpar a lista, pois a verificação de Navegação segura verifica os sites apenas uma vez por dia em busca de alterações.
+
+by Scott Miller 
+https://resources.infosecinstitute.com/topic/securing-linux-web-server/
+
+A segurança do servidor Linux está em nível suficiente a partir do momento em que você instala o sistema operacional. E isso é ótimo saber porque ... os hackers nunca dormem! Eles são como vândalos digitais. Obtendo prazer - e às vezes dinheiro também - ao infligir miséria a estranhos aleatórios em todo o planeta.
+
+Qualquer pessoa que cuida de seu próprio servidor aprecia o fato de que o Linux é altamente seguro desde o início. Naturalmente, não é totalmente estanque. Mas ele faz um trabalho melhor em mantê-lo seguro do que a maioria dos outros sistemas operacionais.
+
+Ainda assim, há muitas maneiras de melhorá-lo ainda mais. Então, aqui estão algumas maneiras práticas de como você pode manter as hordas do mal longe dos portões. Provavelmente ajudará se você já mexeu nos bastidores de um servidor da web antes. Mas não pense que você tem que ser um guru da tecnologia ou algo assim.
+
+

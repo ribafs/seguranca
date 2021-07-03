@@ -1,0 +1,115 @@
+Fail2Ban
+Fail2ban is an open-source intrusion prevention system that can be used to prevent brute force attacks and other suspicious malicious attacks. It scans log files (e.g. /var/log/apache/error_log) and bans IP’s that show the malicious signs such as too many password failures, seeking for exploits etc.
+Generally, Fail2Ban then used to update firewall rules to reject the IP addresses for a specified amount of time, although any arbitrary other action (e.g. sending an email, or ejecting CD-ROM tray) could also be configured. Out of the box Fail2Ban comes with pre-configured filters for various services (Apache, curier, SSH etc.).
+Install Fail2Ban
+Login as root user and enter the following command to install Fail2Ban:
+On Ubuntu/Debian:
+apt-get install fail2ban
+On CentOS/RHEL:
+Add EPEL repository first.
+yum install epel-release
+yum repolist
+Then, install fail2ban with command:
+yum install fail2ban
+Enable and start fail2ban service.
+service fail2ban start
+chkconfig fail2ban on
+Or,
+systemctl enable fail2ban
+systemctl start fail2ban
+Done.
+Backup Fail2Ban Main Configuration File:
+All configuration files will be found under /etc/fail2ban directory. The main configuration file is /etc/fail2ban/jail.conf. It’s a good idea to take backup of main config file to avoid merges during upgrades. Take local copy of /etc/fail2ban/jail.conf file as shown below:
+cp /etc/fail2ban/jail.conf /etc/fail2ban/jail.local
+Configure Fail2Ban
+Open up /etc/fasil2ban/jail.local file using any editor:
+vi /etc/fail2ban/jail.local
+Find a section called [Default]. This section contains the basic set of rules that Fail2Ban will follow. Set the values as per your requirement.
+Here is my settings:
+[DEFAULT]
+
+# "ignoreip" can be an IP address, a CIDR mask or a DNS host
+ignoreip = 127.0.0.1/8 192.168.1.200/24
+[...]
+bantime  = 600
+[...]
+maxretry = 3
+
+# "backend" specifies the backend used to get files modification. Available
+# options are "gamin", "polling" and "auto".
+# yoh: For some reason Debian shipped python-gamin didn't work as expected
+#      This issue left ToDo, so polling is default backend for now
+
+[...]
+backend = auto
+#
+# Destination email address used solely for the interpolations in
+# jail.{conf,local} configuration files.
+destemail = root@localhost
+[...]
+#
+Here,
+    • ignoreip – White list your IP address that you trust to prevent blocking from Fail2Ban. You can add multiple addresses separate by a space character. Here I whitelisted the IP address 192.168.1.200. So this IP address will not be banned even if it sends unlimited number of failed log in attempts.
+    • bantime – Number of seconds that a host would be banned if it is caught by Fail2Ban. The default time is 600 seconds (10 minutes). You can increase the time if you like.
+    • maxretry – Number of incorrect login attempts before a host is blocked by Fail2Ban.
+Service Configuration
+By default, Fail2Ban contains set of pre-defined filters for various services. So you don’t need to enter any manual entries in the configuration files. All you need to do is just change the values of enabled to true or false, the respective services are automatically watched by Fail2Ban.
+Here is sample output of SSH section in jail.local file.
+[ssh]
+
+enabled  = true
+port     = ssh
+filter   = sshd
+logpath  = /var/log/auth.log
+maxretry = 6
+Here, let us see brief details of each entry.
+    • enabled – This means that the ssh service protection is on. If you want to turn it off, just set to false.
+    • port – SSH service port
+    • filter – It refers to the config file containing the rules that Fail2Ban uses to find matches. By default, it is set to sshd that refers to /etc/fail2ban/filter.d/sshd.conf file.
+    • logpath – The log file for failed login attempts.
+    • maxretry – Number of incorrect login attempts before a host is blocked by Fail2Ban.
+Once you have changed the configuration, restart Fail2Ban service to save the changes:
+systemctl restart fail2ban
+Or,
+service fail2ban restart
+You can verify the rules that added by Fail2Ban in iptables using the following command:
+iptables -L
+Sample output:
+Chain INPUT (policy ACCEPT)
+target     prot opt source               destination         
+f2b-sshd   tcp  --  anywhere             anywhere             multiport dports ssh
+ACCEPT     all  --  anywhere             anywhere             ctstate RELATED,ESTABLISHED
+ACCEPT     all  --  anywhere             anywhere            
+INPUT_direct  all  --  anywhere             anywhere            
+INPUT_ZONES_SOURCE  all  --  anywhere             anywhere            
+INPUT_ZONES  all  --  anywhere             anywhere            
+ACCEPT     icmp --  anywhere             anywhere            
+REJECT     all  --  anywhere             anywhere             reject-with icmp-host-prohibited
+[...]
+Testing Fail2Ban
+I am going to try some random failed attempts from my local client to my Fail2Ban server.
+Then, I verified the failed login attempts in the /var/log/fail2ban.log file:
+cat /var/log/fail2ban.log
+Sample output:
+2015-07-13 15:38:15,480 fail2ban.filter         [11792]: INFO    [sshd] Found 192.168.1.100
+2015-07-13 15:38:15,482 fail2ban.filter         [11792]: INFO    [sshd] Found 192.168.1.100
+2015-07-13 15:38:15,483 fail2ban.filter         [11792]: INFO    [sshd] Found 192.168.1.100
+2015-07-13 15:38:15,485 fail2ban.filter         [11792]: INFO    [sshd] Found 192.168.1.100
+2015-07-13 15:38:15,485 fail2ban.filter         [11792]: INFO    [sshd] Found 192.168.1.100
+2015-07-13 15:38:15,487 fail2ban.filter         [11792]: INFO    [sshd] Found 192.168.1.100
+2015-07-13 15:38:15,488 fail2ban.filter         [11792]: INFO    [sshd] Found 192.168.1.100
+2015-07-13 15:38:15,490 fail2ban.filter         [11792]: INFO    [sshd] Found 192.168.1.100
+2015-07-13 15:38:15,491 fail2ban.filter         [11792]: INFO    [sshd] Found 192.168.1.100
+2015-07-13 15:38:15,492 fail2ban.filter         [11792]: INFO    [sshd] Found 192.168.1.100
+2015-07-13 15:38:15,493 fail2ban.filter         [11792]: INFO    [sshd] Found 192.168.1.100
+2015-07-13 15:38:15,495 fail2ban.filter         [11792]: INFO    [sshd] Found 192.168.1.100
+2015-07-13 15:38:15,496 fail2ban.filter         [11792]: INFO    [sshd] Found 192.168.1.100
+2015-07-13 15:38:16,234 fail2ban.actions        [11792]: NOTICE  [sshd] Ban 192.168.1.100
+Or
+iptables -L
+
+As you seen in the above two outputs, my local IP 192.168.1.100 is banned by Fail2Ban.
+Note: The banned IP address will removed after 600 seconds by default.
+That’s it. Hope these tools will be useful to you somewhere.
+Good luck!
+https://www.unixmen.com/prevent-brute-force-attacks-using-these-tools/

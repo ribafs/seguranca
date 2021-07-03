@@ -1,0 +1,331 @@
+Camadas de segurança de um servidor linux com servidor web e um CMS
+
+Infraestrutura
+Sistena operacional
+Desktop
+AMP/EMP
+CMS/framework
+Ferramentas
+- fail2banc
+- mod_security
+- SELinux
+
+
+== Sistema operacional
+
+Atualização
+
+Importante configurar atualizações automáticas pelo menos dos pacotes de segurança
+
+Auditd
+
+Da mesma forma, outra opção é habilitar o serviço Auditd. É responsável por gravar os registros de auditoria no disco. Auditd fornece detalhes sobre o desempenho do servidor e permite monitorar de perto todas as atividades no servidor.
+
+Para instalar e ativar o auditd, use os comandos:
+
+dnf install audit
+
+systemctl enable auditd     
+
+systemctl start auditd
+
+https://bobcares.com/blog/centos-security-hardening/
+
+
+Criar usuário comum e add ao sudo
+
+adduser <username>
+usermod -a -G sudo <username>
+
+
+Criar chave SSH
+Enviar para o servidor
+Acessar via SSH sem senha, com a chave
+Melhorar a segurança do SSH
+
+Somente IPV4
+AddressFamily inet
+
+Habilitar um firewall para bloquear todas as portas, exceto as necessárias
+
+Instalar e configurar fail2ban
+
+Remover pacotes não usados
+
+Vazamento de informação
+As primeiras mudanças de configuração relativamente triviais que devem ser feitas são para desabilitar qualquer vazamento de informações de seu servidor. Todas as distribuições do Linux têm configurações padrão pobres em relação ao vazamento de informações para o Apache e outros serviços. Embora a maioria descarte isso como não sendo uma preocupação, quanto menos informações você transmitir para um hacker, melhor. Cada solicitação ao servidor da web Apache pode responder com informações, como a versão exata do OpenSSL, versão do PHP e muitos outros itens.
+Embora alguns aplicativos como o OpenSSH exijam a transmissão de sua versão no banner para operação, não há razão funcional para o Apache transmitir seu número de versão para o mundo, e da mesma forma, nem qualquer outro módulo Apache relacionado.
+Buscar os cabeçalhos HTTP com curl como exemplo pode fornecer as seguintes informações publicamente:
+
+curl -I example.com
+
+Apache configurations:
+
+ServerTokens Prod
+ServerSignature Off
+TraceEnable Off
+Header unset ETag
+FileETag None
+
+PHP configurations to be made in php.ini:
+[sourcecode]
+expose_php = Off
+display_errors = Off
+track_errors = Off
+html_errors = Off
+
+Após configurar repita
+
+curl -I example.com
+
+Desabilitar serviços não usados
+
+O Nmap pode ser usado para escanear rapidamente serviços abertos em execução no host e também relatar o banner que está sendo anunciado por cada serviço. O comando nmap a ser usado é:
+
+sudo nmap -sV example.com
+
+Sobre firewall
+
+Desativando ICMP - não obrigatório
+
+Muitos administradores geralmente desabilitam ou filtram as solicitações ICMP, embora isso não traga benefícios de segurança. No caso de algo como DNS, as solicitações ICMP são realmente usadas na especificação DNS para consultar se um servidor está disponível antes de enviar a solicitação DNS. As respostas ICMP também são extremamente benéficas para os servidores da web e podem servir na solução de problemas de um servidor da web que parece não estar respondendo às solicitações HTTP. A ameaça de uma inundação de ping é mínima hoje. A menos que o invasor tenha largura de banda de rede consideravelmente maior do que o alvo, a tentativa de inundação causará pouco efeito. As respostas de eco de ping consomem muito pouca CPU do alvo para responder, então é talvez um pouco como jogar muitas pedras pequenas na tentativa de derrubar uma parede de tijolos. É por isso que a maioria dos ataques DoS hoje se concentra em solicitações HTTP em vez de ICMP para aumentar o uso da CPU e da memória do servidor web, que é muito mais eficaz de executar. Resumindo, não há razão para desabilitar o ICMP.
+
+Permissões de arquivos e diretórios
+
+As permissões de arquivos e diretórios no Linux costumam ser um tópico confuso que leva a diferentes visões, especialmente no caso de diretórios e arquivos da web. O pior conselho, que nunca deve ser seguido, é alterar arquivos ou pastas para 777. Isso permite que qualquer pessoa no mundo execute ou grave em seu servidor. O melhor exemplo disso são os plug-ins nocivos do WordPress que hackers mal-intencionados enviam aos servidores por meio de um simples comando HTTP POST. Se as permissões de diretório forem 777, isso permite que qualquer pessoa leia, escreva ou execute qualquer coisa nesse diretório, incluindo a publicação de código malicioso.
+Muitos usuários do WordPress em particular foram recentemente comprometidos por um plugin malicioso que foi instalado porque os usuários incorporaram 777 permissões na instalação do WordPress.
+
+Em geral, os diretórios devem ser 750 ou 755. Os arquivos devem ser 644 ou 640.
+
+Localize os diretórios com 777 em seu servidor:
+
+sudo find /var/www/ -type d -perm -002
+
+Localize os arquivos com 777 em seu servidor:
+
+sudo find /var/www/ -type f -perm -002
+
+Além das permissões também precisamos ficar atentos para os donos dos arquivos/diretórios.
+
+Aplicativos PHP
+
+A execução de PHP em um servidor Linux é necessária para muitos aplicativos populares, como Drupal, WordPress e outros. Novas vulnerabilidades são encontradas não apenas no código PHP mal escrito, mas na própria linguagem em uma taxa alarmante. Visto que o PHP costuma ser emparelhado com o MySQL, um comprometimento do PHP pode significar um comprometimento do banco de dados MySQL que o acompanha para o servidor web. Para esses fins, é essencial estar atento a qualquer software PHP ou atualizações de plug-in. Não instale ou use código PHP de fontes desconhecidas. Para software de blog, minimize o número de plug-ins ou extensões em uso. Se um plug-in ou complemento não estiver ativado ou em uso para o blog ou site, remova os arquivos não utilizados do servidor.
+
+Certifique-se de que as páginas 404 para o servidor não forneçam informações estranhas e não interpretem o que foi colocado na barra de URL. Visite uma página 404 aleatória no servidor da web como um teste, como http://example.com/asdf. Os resultados da página 404 devem fornecer apenas um "Desculpe, essa página não foi encontrada" genérica e não tentar interpretar ou retransmitir os resultados que o usuário colocou na barra de URL. As páginas 404 que permitem a manipulação da entrada do usuário são um ponto de entrada para invasores criarem XSS e outras tentativas maliciosas.
+
+Monitoramento dos Logs
+
+Os logs são uma parte crítica para monitorar a segurança de um servidor web. Existem muitas ferramentas em distribuições Linux para automatizar o monitoramento de log. O aplicativo logwatch envia um relatório diário de e-mail de todos os logs no servidor para informar sobre entradas de log variáveis, como o número de e-mails enviados, invasores da web em potencial e IPs causando erros nos logs do Apache, tentativas de ssh e outros aspectos.
+
+Em um grande ambiente corporativo, é comum enviar emails logwatch junto com outros emails direcionados ao usuário root (erros de cron e outras mensagens do sistema) para uma única lista de emails da empresa. Os administradores da empresa, então, se inscrevem nessa única lista de e-mail para se manterem informados sobre quaisquer notificações alarmantes nos registros de vários servidores da empresa.
+
+https://resources.infosecinstitute.com/topic/securing-linux-web-server/
+
+Desligue o IPv6 para aumentar a segurança do servidor Linux
+
+sudo nano /etc/sysconfig/network
+
+NETWORKING_ IPV6=no
+IPV6INIT=no
+
+Não permita login do root ao servidor
+
+Uma forte política de segurança nas senhas
+
+Então, quais são as "melhores práticas" ao configurar senhas?
+     1. Use senhas tão longas quanto você possa gerenciar
+     2. Evite palavras que aparecem no dicionário (como "uvas azuis")
+     3. Evite substituições de números que sejam fáceis de adivinhar (como "h3ll0")
+     4. Não faça referência à cultura pop (como “TARDIS”)
+     5. Nunca use uma senha em mais de um lugar
+     6. Altere sua senha regularmente e use uma diferente para cada site
+     7. Não anote as senhas e não as compartilhe. Não com ninguém. Sempre!
+     
+Bloqueando contas de usuário após logins malsucedidos
+
+Para a segurança do Linux, o comando faillog mostra tentativas de login malsucedidas e pode atribuir limites para quantas vezes um usuário pode obter suas credenciais de login erradas antes que a conta seja bloqueada. faillog formata o conteúdo do log de falha do banco de dados de log 
+/var/log/faillog. Para visualizar as tentativas de login malsucedidas, digite:
+
+faillog
+
+Para abrir uma conta bloqueada desta forma, execute:
+
+faillog -r -u userName
+
+Com a segurança do Linux em mente, você pode usar o comando passwd para bloquear e desbloquear contas:
+
+Bloquear uma conta
+
+passwd -l userName
+
+Desbloquear
+
+passwd -u userName
+
+Use um bom IDS
+
+rkhunter
+
+Ative a atualização automática do CMS
+
+Faça backups regularmente, sempre que fizer alguma alteração no site
+
+https://www.plesk.com/blog/various/linux-server-security-best-practices/
+
+Use sempre SSL
+
+Instale e configure o ModSecurity
+
+Proteja arquivos críticos
+
+É essencial bloquear arquivos críticos para evitar exclusão ou edição acidental. Esses arquivos incluem /etc/passwd e /etc/gshadow que contêm senhas com hash. Para tornar os arquivos imutáveis (ou seja, evitar modificação ou exclusão acidental), use o comando chattr conforme mostrado:
+
+sudo chattr +i /etc/passwd
+sudo chattr +i /etc/shadow
+
+Isso garante que um hacker não possa alterar nenhuma senha dos usuários ou excluí-los, levando à negação de login no sistema.
+
+Limitar número de tentativas de login ao SSH
+
+MaxAuthTries 3
+
+Isso significa que após 3 tentativas incorretas de senha, a sessão será encerrada. Isso é útil, especialmente quando você deseja bloquear scripts / programas robóticos que tentam obter acesso ao seu sistema.
+
+Instalar intrusion prevention system (IPS)
+
+fail2ban
+
+https://www.linuxtechi.com/harden-secure-centos-8-rhel-8-server/
+
+Criar partição para o /tmp e adicionar ao fstab
+
+sudo nano /etc/fstab
+
+/dev/sda6       /tmp         ext4    defaults,nosuid,nodev,noexec 0 0
+
+Scannear portas da rede
+
+Conduza verificações de portas externas usando a ferramenta Nmap de um sistema remoto pela LAN. Este tipo de varredura pode ser usado para verificar vulnerabilidades de rede ou testar as regras de firewall.
+
+nmap -sT -O 192.168.1.10
+
+Inspecionar pacotes de protocolo com Tcpdump
+
+Use o utilitário tcpdump para farejar pacotes de rede localmente e inspecionar seu conteúdo em busca de tráfego suspeito (portas origem-destino, protocolos TCP / IP, tráfego de camada dois, solicitações ARP incomuns).
+
+Para uma melhor análise do arquivo capturado tcpdump, use um programa mais avançado como o Wireshark.
+
+tcpdump -i eno16777736 -w tcpdump.pcap
+
+Aplicar política de senha forte em servidores com vários usuários
+
+Force o sistema a usar senhas fortes adicionando a linha abaixo no arquivo /etc/pam.d/passwd.
+
+password required pam_pwquality.so retry=3
+
+Adicionando a linha acima, a senha inserida não pode conter mais de 3 caracteres em uma sequência monotônica, como abcd, e mais de 3 caracteres consecutivos idênticos, como 1111.
+
+Para forçar os usuários a usar uma senha com um comprimento mínimo de 8 caracteres, incluindo todas as classes de caracteres, verifique a força para sequências de caracteres e caracteres consecutivos, adicione as seguintes linhas ao arquivo /etc/security/pwquality.conf.
+
+minlen = 8
+minclass = 4
+maxsequence = 3
+maxrepeat = 3
+
+Impedir o acesso à Shell de contas
+
+Para evitar que uma conta do sistema (conta comum ou conta de serviço) obtenha acesso a um shell bash, altere o shell root para /usr/sbin/nologin ou /bin/false no arquivo /etc/passwd emitindo o comando abaixo:
+
+usermod -s /bin/false username
+
+Para alterar o shell ao criar um novo usuário, emita o seguinte comando:
+
+useradd -s /usr/sbin/nologin username
+
+Desativando Acesso do root via TTY
+
+Para evitar que a conta root execute o login do sistema através de todos os dispositivos do console (TTY), apague o conteúdo do arquivo securetty digitando o seguinte prompt do terminal de comando como root.
+
+cp /etc/securetty /etc/securetty.bak
+cat /dev/null > /etc/securetty
+
+Use SELinux no modo enforcing
+
+Use o servidor de logs centralizado
+
+Configure o daemon rsyslog para enviar mensagens de log de utilitários confidenciais para um servidor de log centralizado. Além disso, monitore os arquivos de log com a ajuda do utilitário logwatch.
+
+O envio de mensagens de log a um servidor remoto garante que, uma vez comprometido o sistema, os usuários mal-intencionados não consigam ocultar completamente sua atividade, sempre deixando rastros nos arquivos de log remotos.
+
+Reforce a segurança do
+
+/etc/sysctl.conf
+
+Executar verificação externa do sistema
+
+Avalie a segurança do seu sistema quanto a vulnerabilidades, varrendo o sistema de pontos remotos em sua LAN usando ferramentas específicas, como:
+
+nmap
+nikto
+
+Proteja o sistema internamente
+
+Use a proteção interna do sistema contra vírus, rootkits, malware e, como uma boa prática, instale sistemas de detecção de intrusão que podem detectar atividades não autorizadas (ataques DDOS, varreduras de portas), como:
+
+AIDE
+Clamav
+rkhunter
+lynis
+tripwire
+fail2ban
+OSSEC
+mod-security
+
+https://www.tecmint.com/centos-7-hardening-and-security-guide/
+
+https://bigstep.com/blog/five-ways-to-secure-a-centos-8-server
+
+Modificações no fstab
+
+sudo nano /etc/fstab
+
+/dev/VG_OS/lv_tmp           /tmp     ext3      defaults,nosuid,noexec,nodev  1 2
+/dev/VG_OS/lv_vartmp        /var/tmp ext3      defaults,nosuid,noexec,nodev 1 2
+/dev/sda1                   /boot    vfat      ro,nosuid,noexec,nodev  1 2
+
+Restringindo o user root
+
+Depois que um servidor está instalado e funcionando, o root não deve se conectar diretamente, exceto em situações de emergência. Isso geralmente requer mãos no console, então esse é o único lugar onde o root deve ter permissão para fazer login. Para fazer isso, precisamos modificar / etc / securetty. Além disso, ninguém além do root deve ser permitido no diretório inicial do root. As configurações padrão são próximas disso, mas não são paranóicas o suficiente.
+
+echo "tty1"> /etc/securetty
+chmod 700 /root
+
+Uma vez que removemos efetivamente a capacidade do root de logar de qualquer lugar, exceto do console local, é necessário usar su e sudo. Isso oferece alguns benefícios secundários em um ambiente multi-admin.
+
+     • sudo permite controle granular sobre ações privilegiadas. Dessa forma, um administrador de site pode iniciar, parar e gerenciar o servidor da web sem ser capaz de afetar outros serviços.
+     • Você obtém uma imagem muito mais clara de quem fez o quê em seus logs, já que quem se tornou root em que horas não é mais um mistério.
+
+Usando TCP Wrappers
+     
+Wrappers TCP podem fornecer um método rápido e fácil para controlar o acesso aos aplicativos vinculados a eles. Exemplos de aplicativos compatíveis com TCP Wrapper são sshd e portmap. Um exemplo restritivo está abaixo. Este exemplo bloqueia tudo, exceto ssh.
+
+echo "ALL:ALL" >> /etc/hosts.deny
+echo "sshd:ALL" >> /etc/hosts.allow
+
+https://wiki.centos.org/HowTos/OS_Protection
+
+Auditd
+
+Da mesma forma, outra opção é habilitar o serviço Auditd. É responsável por gravar os registros de auditoria no disco. Auditd fornece detalhes sobre o desempenho do servidor e permite monitorar de perto todas as atividades no servidor.
+
+Para instalar e ativar o auditd, use os comandos:
+
+dnf install audit
+
+systemctl enable auditd     
+
+systemctl start auditd
+
+https://bobcares.com/blog/centos-security-hardening/
+
+

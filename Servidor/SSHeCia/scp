@@ -1,0 +1,19 @@
+Compactar a pasta /var/www/html
+
+cd /var/www
+sudo apt install zip
+sudo zip -r laravel-acl.zip html
+
+Puxar o laravel-acl.zip do servidor para o desktop
+cd ~/
+
+scp -P 65522 ribafs@ribamar.net.br:/var/www/laravel-acl.zip .
+
+
+== Copiar a pasta /var/www/html/ (a / indica que trará também a pasta e não somente os arquivos) para /home/ribafs
+
+mkdir /home/ribafs/laravel-acl
+cd /home/ribafs/laravel-acl
+
+scp -r -P 65522 ribafs@ribamar.net.br:/var/www/html/ .
+

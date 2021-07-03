@@ -1,0 +1,18 @@
+Configurando yum-cron para atualizações automáticas
+
+Habilite o serviço yum-cron para garantir que ele seja iniciado automaticamente.
+
+systemctl enable yum-cron
+
+nano /etc/yum/yum-cron.conf
+
+update_cmd = security
+apply_updates = yes
+
+Isso é o que vai acontecer diariamente. Você pode opcionalmente configurar /etc/yum/yum-cron-hourly.conf, que como o nome sugere, é executado a cada hora. Por padrão, a configuração por hora não faz download ou aplique qualquer coisa.
+
+systemctl start yum-cron
+
+/var/log/yum.log
+
+

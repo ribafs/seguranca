@@ -1,0 +1,195 @@
+Instalação do clamav em seu desktop Ubuntu
+
+ClamAV (https://www.clamav.net/) é um mecanismo antivírus de código aberto para detectar trojans, vírus, malware, adwares, rootkits e outras ameaças maliciosas.
+
+O objetivo é limpar seu desektop linux de arquivos infectados com virus do windows.
+
+Alguns dos recursos do ClamAV:
+
+    - suporte integrado para vários formatos de arquivo, incluindo Zip, Tar, Gzip, Bzip2, OLE2, Cabinet, CHM, BinHex, SIS e outros.
+    - suporte integrado para quase todos os formatos de arquivo de e-mail
+    - suporte integrado para executáveis ELF e arquivos executáveis portáteis compactados com UPX, FSG, Petite, NsPack, wwpack32, MEW, Upack e ofuscados com SUE, Y0da Cryptor e outros;
+    - suporte integrado para formatos de documentos populares, incluindo arquivos do Microsoft Office e Mac Office, HTML, RTF e PDF.
+    - suporta várias linguagens de assinatura, como correspondência de assinatura baseada em hash, curingas, lógica booleana e quaisquer regras personalizadas escritas na linguagem Bytecode.
+
+O ClamAV inclui um daemon de varredura multithread, utilitários de linha de comando para varredura de arquivos sob demanda e atualizações automáticas de assinaturas e também uma interface gráfica. Um de seus principais usos é em servidores de e-mail como verificador de vírus de e-mail no servidor.
+
+Instalar e usar o ClamAV no Ubuntu 20.04
+
+sudo apt update; sudo apt install -y clamav clamav-daemon
+
+Atualize o banco de dados de assinaturas do ClamAV
+
+Para que a digitalização funcione, você precisa de um banco de dados de vírus atualizado. Existem duas opções para atualizar o banco de dados ClamAV:
+
+clamav-freshclam: atualiza o banco de dados via Internet. Isso é recomendado com acesso à Internet.
+
+Para usar este método, pare o serviço clamav-freshclam (se estiver em execução) e execute freshclam, a ferramenta de atualização do banco de dados de vírus.
+
+sudo systemctl stop clamav-freshclam
+
+Então atualize o banco de dados de virus
+
+sudo freshclam
+
+Se o banco de dados estiver atualizado, você poderá obter uma saída semelhante à abaixo (caso contrário, o comando puxará as atualizações do banco de dados):
+
+sudo freshclam
+Wed Feb 24 15:48:14 2021 -> ClamAV update process started at Wed Feb 24 15:48:14 2021
+Wed Feb 24 15:48:14 2021 -> daily database available for download (remote version: 26090)
+Time: 34.7s, ETA: 0.0s [=============================>] 100.82MiB/100.82MiB      
+Wed Feb 24 15:48:53 2021 -> Testing database: '/var/lib/clamav/tmp.83512/clamav-0e63a8d7bfff3bdd41f437ba92b8d2d2.tmp-daily.cvd' ...
+Wed Feb 24 15:49:09 2021 -> Database test passed.
+Wed Feb 24 15:49:09 2021 -> daily.cvd updated (version: 26090, sigs: 3991302, f-level: 63, builder: raynman)
+Wed Feb 24 15:49:09 2021 -> main database available for download (remote version: 59)
+Time: 29.1s, ETA: 0.0s [=============================>] 112.40MiB/112.40MiB      
+Wed Feb 24 15:49:43 2021 -> Testing database: '/var/lib/clamav/tmp.83512/clamav-c8900d0f5db9d36563e60724c2d9ca7c.tmp-main.cvd' ...
+Wed Feb 24 15:49:53 2021 -> Database test passed.
+Wed Feb 24 15:49:53 2021 -> main.cvd updated (version: 59, sigs: 4564902, f-level: 60, builder: sigmgr)
+Wed Feb 24 15:49:53 2021 -> bytecode database available for download (remote version: 332)
+Time: 0.2s, ETA: 0.0s [=============================>] 288.08KiB/288.08KiB     
+Wed Feb 24 15:49:53 2021 -> Testing database: '/var/lib/clamav/tmp.83512/clamav-6de79a023f7838a54eea58e90efd0ad3.tmp-bytecode.cvd' ...
+Wed Feb 24 15:49:53 2021 -> Database test passed.
+Wed Feb 24 15:49:53 2021 -> bytecode.cvd updated (version: 332, sigs: 93, f-level: 63, builder: awillia2)
+Wed Feb 24 15:49:53 2021 -> ^Clamd was NOT notified: Can't connect to clamd through /var/run/clamav/clamd.ctl: No such file or directory
+
+Em seguida, inicie o serviço clamav-freshclam para que ele continue atualizando o banco de dados de assinaturas em segundo plano sempre que quiser.
+
+sudo systemctl start clamav-freshclam
+
+Certifique-se de que o serviço esteja habilitado para execução na inicialização do sistema:
+
+sudo systemctl is-enabled clamav-freshclam
+
+freshclam baixa os bancos de dados ClamAV, CVDs, e os coloca sob
+
+/var/lib/clamav/.
+
+ls /var/lib/clamav/
+
+bytecode.cvd daily.cvd main.cvd
+
+Atualização do banco de dados de virus offline (opcional)
+
+Se o seu sistema não tiver acesso à Internet, basta baixar os CVDs da página de downloads do ClamAV (https://www.clamav.net/downloads) e colocá-los em /var/lib/clamav.
+
+Assim que os CVDs baixados forem colocados no banco de dados do ClamAV, certifique-se de alterar a propriedade e as permissões de acordo;
+
+sudo chown clamav:clamav /var/lib/clamav/*.cvd
+
+sudo chmod 644 /var/lib/clamav/*.cvd
+
+sudo systemctl restart clamav-daemon
+
+Opções Clamscan CLI e Exemplo de Uso
+
+O Clamscan é usado para verificar a presença de vírus em arquivos e diretórios. Nas páginas do manual, a sintaxe do comando clamscan é:
+
+clamscan [options] [file/directory/-]
+
+Algumas das opções de comando clamscan e seu uso de exemplo são ilustrados abaixo
+
+clamscan -h
+
+Nota: As opções marcadas com [=yes/no(*)] podem ser opcionalmente seguidas por = sim ou = não. Se eles forem chamados sem o argumento booleano, o scanner assumirá 'sim'. O asterisco marca a configuração interna padrão para uma determinada opção.
+
+Verificar diretório ou arquivo específico;
+
+clamscan /home/ribafs
+
+clamscan /home/filename.docx
+
+Não exibir o resumo no final da digitalização
+
+clamscan --no-summary /home/ribafs
+
+Imprime somente arquivos infectados (-i, --infected);
+
+clamscan -i /
+
+Ignorar a impressão de arquivos OK (-o, --suppress-ok-results);
+
+clamscan -o /home/ribafs
+
+Soar um sino na detecção de vírus (--bell);
+
+clamscan --bell -i /home/ribafs/Downloads
+
+Verifica diretórios recursivamente (-r, --recursive).
+
+clamscan --bell -i -r /home/ribafs
+
+Salvar relatório de varredura em FILE (-l FILE, --log=FILE);
+
+clamscan --bell -i -r /home -l home-scan.txt
+
+Verifica os arquivos listados linha por linha em FILE (-f FILE, --file-list=FILE).
+
+clamscan -i -f /tmp/scan
+
+Remova os arquivos infectados (--remove[=yes/no(*)]). Tenha cuidado, pois isso remove o arquivo completamente.
+
+ clamscan -r --remove /home/USER
+ 
+Mova os arquivos infectados para DIRETÓRIO (--move=DIRETÓRIO). O diretório deve ser gravável para o usuário ou usuário sem privilégios executando o clamscan.
+
+clamscan -r -i --move=/home/USER/infected /home/
+
+Copie os arquivos infectados para o DIRETÓRIO (–copy=DIRETÓRIO). O diretório deve ser gravável para o usuário ou usuário sem privilégios executando o clamscan.
+
+clamscan -r -i --copy=/home/USER/infected /home/
+
+Há uma longa lista de opções para vários usos do clamscan. Consulte man clamscan para obter mais detalhes.
+
+Códigos de retorno ClamAV
+
+A seguir estão os códigos de retorno de saída do ClamAV.
+
+     0: Nenhum vírus encontrado.
+     1: Vírus (s) encontrados.
+     2: Ocorreram alguns erros.
+
+Limitando o uso de CPU Clamscan
+
+clamscan pode ser intensivo para a CPU, especialmente se estiver digitalizando um diretório grande.
+
+Para limitar o tempo de CPU do clamscan a certos níveis, você pode usar duas ferramentas;
+
+     nice: diminui a prioridade do clamscan (limita o tempo relativo da CPU).
+     cpulimit: limita o tempo absoluto da CPU.
+
+Para usar um bom comando,
+
+nice -n 15 clamscan && clamscan -ir /
+
+Desde que nenhum outro processo exija cputime, o clamscan o maximizará. Mas assim que outro processo com uma prioridade mais alta precisar de cputime, o clamscan o perderá.
+
+Usando cpulimit;
+
+cpulimit -z -e clamscan -l 20 & clamscan -ir /
+
+Limita o tempo de CPU do clamscan a 15% ao verificar todo o diretório raiz.
+
+Criar lista de arquivos infectados
+
+clamscan -r /home/ribafs/ | grep FOUND >> report.txt
+
+
+Adicionando ao cron
+
+crontab -e
+
+00 00 * * * clamscan -r /home
+
+Instalar gui
+
+apt-get install ClamTK
+
+
+Referências
+
+https://kifarunix.com/install-and-use-clamav-on-ubuntu-20-04/
+
+https://www.unixmen.com/installing-scanning-clamav-ubuntu-14-04-linux/
+
+

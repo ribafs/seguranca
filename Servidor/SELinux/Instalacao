@@ -1,0 +1,80 @@
+Instalação e Configuração do SELinux no CentOS 8.3
+
+Adicionar usuário comum
+
+adduser ribafs
+passwd ribafs
+
+Adicionar usuário ribafs ao grupo wheel, que dará acesso ao sudo
+
+usermod -aG wheel ribafs
+
+Ver os serviços de rede
+
+sudo ss -atpu
+
+
+Instalação
+
+Quando o SELinux é instalado em seu sistema, ele pode estar habilitado ou desabilitado.
+
+Verificar se está instalado
+
+sudo rpm -qa | grep selinux
+
+ou
+
+sudo sestatus
+
+ou
+
+sudo nano /etc/selinux/config
+
+sudo dnf update
+
+sudo dnf install -y policycoreutils setools setools-console setroubleshoot selinux-policy-targeted selinux-policy-devel setroubleshoot-server  mctrans libselinux-utils setools
+
+SELinux rotulando todos os arquivos com os devidos contextos
+
+sudo touch /.autorelabel
+
+O SELinux detectará o arquivo /.autorelabel no boot e, a seguir, rotulará novamente todos os arquivos com os contextos SELinux corretos. Se você tiver muitos arquivos, a instância pode ficar indisponível por um longo tempo. Você pode monitorar a instância no console da administração do VPS.
+
+sudo reboot
+
+Pacotes
+
+◦ policycoreuitls contêm várias ferramentas de gerenciamento para administrar seu ambiente SELinux e políticas.
+
+◦ setools fornece ferramentas de linha de comando para trabalhar com as políticas SELinux. Algumas dessas ferramentas incluem o sediff, que você pode usar para ver as diferenças entre as políticas, seinfo uma ferramenta para ver informações sobre os componentes que constituem as políticas do SELinux e a pesquisa usada para pesquisar suas políticas do SELinux. setools-console consiste em sediff, seinfo e sesearch. Você pode emitir a opção --help após qualquer uma das ferramentas listadas para ver mais informações sobre cada uma.
+
+◦ setroubleshoot - O conjunto de ferramentas setroubleshoot ajuda a determinar por que um script ou arquivo pode ser bloqueado pelo SELinux.
+
+◦ setroubleshoot-server - O setroubleshoot-server permite, entre muitas outras coisas, que notificações por email sejam enviadas do servidor para notificá-lo de quaisquer violações de política. 
+
+◦ O daemon mctrans traduz a saída do SELinux em texto legível por humanos.
+
+
+Configuração
+
+• Para habilitar ou desabilitar o SELinux de forma permanente, altere seu arquivo de configuração. Defina a diretiva SELINUX como disabled, permissive ou enforcing conforme mostrado no exemplo abaixo.
+
+sudo nano /etc/selinux/config
+
+# This file controls the state of SELinux on the system.
+# SELINUX= can take one of these three values:
+#     enforcing - SELinux security policy is enforced.
+#     permissive - SELinux prints warnings instead of enforcing.
+#     disabled - No SELinux policy is loaded.
+SELINUX=enforcing
+# SELINUXTYPE= can take one of three values:
+#     targeted - Targeted processes are protected,
+#     minimum - Modification of targeted policy. Only selected processes are protected.
+#     mls - Multi Level Security protection.
+SELINUXTYPE=targeted
+
+sudo reboot
+
+Após alterar este arquivo precisa reiniciar o servidor para que as alterações tenham efeito.
+
+

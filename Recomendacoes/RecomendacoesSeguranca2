@@ -1,0 +1,145 @@
+Recomendações
+
+Os cuidados com a segurança colaboram para que os sites e aplicativos instalados no servidor sejam executados de forma esperada, rápida e sem interrumpção.
+
+- Hospede seu site em servidor seguro
+- Efetue backup regularmente, especialmente a cada alteração no site
+	A melhor opção atualmente para backup é o Akeeba Backup - https://www.akeebabackup.com/download.html
+	Caso tenha dificuldade de usar o formato JPA, altere em Configuration - Archiver engine para ZIP format
+	Ele gera o backup com um instalador. Para restaurar apensa instale como se fosse instalar o Joomla
+	Faça também backup dos scripts de configuração do servidor para o caso de uma reinstalação
+	Lembre de fazer o backup do servidor com os recursos da hospedagem ou crie um snapshot
+- Também faça teste de restore de vez em quando para garantir que o backup está integro, usando o kickstart
+- A quantidade de cópias de backup a ser guardada depende da importância do site. Se mais importante mais cópias
+- As cópias devem ser armazenadas em mídia confiável: HD e DVD
+- Efetue atualização com frequência. Mantenha o aviso de atualização ativo para que receba um aviso por e-mail e atualize imediatamente
+- Após a primeira atualização reinicie o servidor
+- Acessar de forma segura usando SSH (enxuto e configurado para salvar a senha) e nunca via FTP
+- Manter seu desktop seguro, usando um sistema operacional seguro no mesmo, com firewall e outros cuidados
+- Use e abuse da comunidade com seus conhecimentos e generosidade para manter-se atualizado em termos de segurança e proteger seu site
+- Use senhas fortes
+- Use o SSL para proteger pelo menos o administrator
+- Use boas extensões para reforçar a segurança
+- Remova todas as extensões que não estiver usando e não somente desabilite
+- Evite instalar pacotes para desenvolvimento como gcc, make, etc e evite também instalar repositórios instáveis.
+- Monitorar frequentemente os logs à procura de algo suspeito em todos os serviços ativos
+- Use softwares tipo IDS que detectam intrusões
+- Instalar um bom firewall de aplicativos como o mod_security
+- Ficar bem atento, estudando, se informando sempre sobre o assunto de que cuida
+- Logo após a configuração final do servidor já crie um backup ou snapshot da droplet e fique atento para criar outro logo que o servidor esteja concluído e bem configurado.
+- Uma boa ideia é ter no desktop a mesma distro e versão do Linux. Para quem usa Windows uma box no Vagrant do Ubuntu 20.04 em seu desktop, sendo cópia fiel e original do servidor localmente, mesma distribuição, mesma versão
+- E use algumas ferramentas que reforçam a segurança como:
+fail2ban
+denyhosts
+lynis
+rhhunter
+etc
+
+- Usar senhas de no mínimo 8 caracteres. Quanto mais melhor
+- Misturar caracteres alfabéticos maiúsculas, minúsculas, números e caracteres especiais como:
+-, _, *, $, !, %
+- Não use senhas fáceis como data de nascimento, número de identidade, nomes de filhos e cônjuges.
+- Procure não usar palavras do mundo real
+- Pense num eposódio que apenas você conhece ou lembra e forme uma frase com suas iniciais
+- Crie senhas posicionais, por exemplo: primeira letra da última fila, primeira letra da primeira fila, última letra da última fila, última letra da primeira fila e assim por diante.
+- Mesmo que ilógicas as senhas devem ser, para você, de fácil memorização, pois você deve evitar anotar as senhas
+- Evite usar a mesma senha para todos os esus acessos
+- Atualize com uma certa frequeência suas senhas
+
+
+Evitar o uso do ftp para transferir/baixar arquivos para/do servidor, pois ele envia seus dados (login e senha) em texto claro.
+
+Se precisar usar o ftp use o FileZilla, que usa o sftp.
+
+https://filezilla-project.org/
+
+Instalação:
+
+Debian e derivados
+sudo apt-get install filezilla
+
+
+Segurança no Joomla (parte 1)
+
+Dicas de segurança no joomla.
+Muitas pessoas utilizam o CMS Joomla, no entanto a maior parte destas "esquece-se" do fator segurança nos seus sites. Existem pequenos pormenores extremamente fáceis de implementar que aumentarão consideravelmente a segurança do teu site Joomla.
+
+Desligar os relatórios de erro
+
+Um deles é desligar os relatórios de erros, os relatórios de erros alem de diminuírem a velocidade do site indicarão também ao "hackers" falhas na segurança deste. Isto pode ser desativado em 'Configuração Geral -> Sistema'.
+
+Depois de desativada esta função não te será permitido visualizar os erros gerados pelo Joomla, o que é uma coisa boa uma vez que o utilizador comum não os vê (o que não era muito profissional) e os hackers não podem forçar erros de forma a descobrirem métodos de comprometer o sistema.
+
+Utilizar um componente SEF
+
+A maioria dos hackers utilizam o comando 'inurl:' do Google para procurarem por falhas em websites. Uma boa solução para contrariar este potencial risco é instalar um componente que re-escreva os Url, aconselho o SH404SEF ou o Artio-JoomSef.
+
+O componente SEF irá trazer-lhe também bastantes vantagens a nível de SEO (rank mais elevado aos "olhos" do Google).
+
+
+Mover o ficheiro configuration.php para fora da raiz.
+Mova simplesmente o ficheiro de configuração para qualquer pasta que você queira dentro do site e atribua-lhe um novo nome. No exemplo utilizei 'joom.conf'.
+Crie um novo ficheiro de configuração na raiz com o nome de configuration.php contendo o seguinte código:
+
+<?php
+require( dirname( __FILE__ ) . '/../joom.conf' );
+?>
+
+Realize backups regulares
+
+Esta tarefa pode ser feita através do Cpanel de qualquer conta de alojamento, no entanto existem também alguns componente muito bons que realizam esta tarefa. O meu favorito é o JoomlaPack. Um backup semanal caso atualize o seu site regularmente é uma boa opção, ou então backups mensais.
+
+
+Não mostrar que versões das extensões utiliza
+
+Em primeiro lugar qualquer admin de um website deveria ter uma lista de todas as extensões que utiliza e fazer o update a estas quando sai-se uma nova versão. No entanto todos nos sabemos que o tempo não chega para tudo e muitas vezes fazer um update a uma extensão pode ser um bocado moroso. É então boa política remover a versão da extensão que utiliza a quando da instalação desta, isto pode ser feito editando os ficheiros da extensão com o notepad por exemplo.
+
+
+Segunda parte
+
+Um site em Joomla! é muito mais do que instalá-lo no servidor, mover alguns módulos de posição, instalar componentes, plugins e pronto! Já temos um site completo, feito em três dias e podemos ganhar mais de mil reais do nosso cliente.
+
+Sinceramente, pessoal, o Joomla é tão complicado de usar quanto se programar um site do zero. Claro que você não terá mais a necessidade de digitar todas as linhas de código, mas eventuais alterações serão necessárias e é importante saber o que, onde e por que está sendo feita aquela mudança.
+
+Além disso, a segurança é muito importante. Hoje existe uma gama enorme de componentes e módulos para Joomla, mas antes de usarem, perguntem-se: "este componente é seguro?". A maioria das invasões em sites Joomla! é feita através do próprio cms mal configurado ou de seus componentes desatualizados. Experiência própria: é muito mais difícil você contornar uma invasão do que prevenir que ela não aconteça.
+
+Trabalho com o Joomla há mais de três anos, desde a versão 1.0.12, e desde lá já aprendi muito, tomei muito na cabeça e hoje me viro tranqüilo, tanto é que tenho mais de 20 clientes em minha região e todos utilizam o Joomla!, mas a cada nova atualização de componentes, preciso dar atenção a estes sites, pois é a segurança dos dados e informações dos mesmos que estão em jogo.
+
+Por isso minha gente, tenho um sério conselho a dar a vocês: Estudem!
+
+Estudem muito o Joomla, pesquisem sobre servidores web (apache), sobre dicas de segurança no PHP, informações sobre servidores de e-mail, segurança de arquivo, permissões de acesso a pastas e arquivos, etc...
+
+Mostrei apenas o caminho das pedras, agora é Google na veia e tempo e disciplina para estudar. Hoje existem mil vezes mais materiais sobre esse assunto do que quando comecei. Inclusive a maioria mais detalhada e em português, no "meu tempo" os bons artigos e tutoriais eram em inglês.
+
+Este e-mail foi escrito como um alerta aos desavisados, para não saírem por ai usando o Joomla! sem considerar o uso de medidas sobre segurança.
+
+Isso evitará os seus sites de serem invadidos e assim o indivíduo não vai sair por ai xingando todo mundo em qualquer fórum destinado ao Joomla!, falando mal do sistema para qualquer um que aparecer, alegando que "não é seguro".
+
+Quem faz o Joomla ser seguro é você".
+Escrito por Roberto Jonikaites para o Yahoogrupos – Curso de Design para Joomla! De Bruno Ávila.
+
+Este artigo foi encontrado no sitea baixo, mas faz um bom tempo que este domínio não está ativo, nem mesmo o raiz (http://www.joomlarj.com.br). Outra providência que uso nestas casos é efetuar uma pesquisa pelo título, já que o domínio está fora, assim, usando aspas duplas cercando o título, para que o Google mostre somente sites que contiverem exatamente a frase:
+
+"Segurança no Joomla (parte 1)"
+
+Olha o que o Google ke diz:
+
+Nenhum resultado encontrado para "Segurança no Joomla (parte 1)".
+
+Ou seja, o autor publicou apenas no domínio joomlarj.com.br. Ainda bem que guardei e estou divulgando aqui. Caso ele reclame será removido sem problema.
+
+http://www.joomlarj.com.br/site/index.php?option=com_content&view=article&id=26:seguranca-no-joomla-parte-2&catid=15:seguranca-no-joomla&Itemid=15
+
+
+
+Windows 64
+https://filezilla-project.org/download.php?platform=win64
+
+Referências
+
+https://geek.linuxman.pro.br/geek/ubuntu-pronto-para-guerra
+https://www.thefanclub.co.za/how-to/how-secure-ubuntu-1604-lts-server-part-1-basics 
+https://linux-audit.com/ubuntu-server-hardening-guide-quick-and-secure/
+https://hostpresto.com/community/tutorials/how-to-install-and-use-lynis-on-ubuntu-14-04/
+
+

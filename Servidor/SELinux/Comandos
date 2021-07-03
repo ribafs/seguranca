@@ -1,0 +1,45 @@
+Comandos CLI do SELinux
+
+Os comandos que alteram o estado o fazem temporariamente, somente até o próximo boot.
+
+getenforce - mostra o estado atual do SELinux (disabled, enforcing ou permissive)
+
+# enforcing   ⇒  SELinux está habiltiado (default), monitorando e bloqueando
+# permissive  ⇒  MAC não está habilitado, somente registrando a auditoria nos logs de acordo com as Policies
+# disabled    ⇒  SELinux está desabilitado
+
+Mudar o estado temporariamente:
+
+setenforce 0 - Seta para permissive
+
+setenforce 1 - Seta para enforcing
+
+getenforce
+
+Mostrar informações sobre o estado atual
+
+sudo sestatus
+
+chcon, 
+restorecon, 
+restorecond, 
+runcon, 
+secon, 
+fixfiles, 
+setfiles, 
+load_policy, 
+booleans , 
+getsebool, 
+setsebool, 
+togglesebool, 
+setenforce, 
+semodule, 
+postfix-nochroot, 
+check-selinux-installation, 
+semodule_package, 
+checkmodule, 
+selinux-config-enforcing, 
+selinuxenabled e 
+selinux-policy-upgrade.
+
+

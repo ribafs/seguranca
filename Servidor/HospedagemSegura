@@ -1,0 +1,4 @@
+Sabe qual o tipo de hospedagem que dá o melhor desempenho de todas e também a maior segurança? A hospedagem para sites estáticos. Nada de servidor de bancos de dados nem de linguagens dinâmicas, somente o servidor web e arquivos praticamente texto, exceto o Javascript.
+Então se sua landing page for dinâmica converte em HTML estático e hospeda num Github, por exemplo e o melhor ficou para o final, é de graça. O que quer mais? Interatividade? Comentários, busca, etc. Tem como fazer. Basta procurar recursos para sites estáticos: disqus, busca do Google, etc.
+Se precisar de ajuda para exportar a landingpage:
+https://github.com/.../prog.../blob/main/Ferramentas/wget.sh

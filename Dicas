@@ -1,0 +1,57 @@
+Liberar a nova porta do SSH
+
+semanage port -l | grep ssh
+ssh_port_t                     tcp      22
+
+sudo semanage port -a -t ssh_port_t -p tcp 44422
+
+semanage port -l | grep ssh
+ssh_port_t                     tcp      44422, 22
+
+Abrir a porta 44422 no FirewallD
+
+É sempre recomendável manter o serviço de Firewall em execução e permitir apenas serviços confiáveis.
+
+sudo firewall-cmd --add-port=44433/tcp --permanent
+sudo firewall-cmd --reload
+
+Agora podemos remover o serviço de SSH que roda na porta 22
+
+sudo firewall-cmd --remove-service=ssh --permanent
+sudo firewall-cmd --reload
+
+sudo systemctl restart sshd
+
+netstat -tunl | grep 33000
+tcp        0      0 0.0.0.0:44422           0.0.0.0:*               LISTEN     
+tcp6       0      0 :::44422                :::* 
+
+https://computingforgeeks.com/change-ssh-port-centos-rhel-fedora-with-selinux/
+
+sudo chcon -R -t httpd_sys_rw_content_t /var/www/html
+
+sudo systemctl restart httpd
+
+Alterar as permissões e o contexto de segurança do arquivo SELinux:
+
+sudo chown -R apache:apache /var/www/html/wordpress
+sudo chcon -t httpd_sys_rw_content_t /var/www/html/wordpress -R
+
+Atualizar repositórios
+
+sudo dnf makecache
+
+execute o seguinte comando para definir o contexto SELinux correto para o diretório /var/www/wordpress e seu conteúdo
+
+sudo semanage fcontext -a -t httpd_sys_rw_content_t \
+"/var/www/wordpress(/.*)?"
+
+Para que as alterações do SELinux tenham efeito, execute o seguinte comando:
+
+sudo restorecon -Rv /var/www/wordpress
+
+
+Referẽncias
+
+https://linuxhint.com/install_wordpress_centos8/
+

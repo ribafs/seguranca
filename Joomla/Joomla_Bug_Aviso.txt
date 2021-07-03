@@ -1,0 +1,16 @@
+http://docs.joomla.org/Filing_bugs_and_issues
+
+Registrar-se no Joomla Code:
+http://joomlacode.org/gf/account/?action=UserAdd
+
+Verificar se o bug que deseja reportar não já foi reportado
+http://docs.joomla.org/Filing_bugs_and_issues
+
+Efetuar login para bug do 1.5.x em:
+http://joomlacode.org/gf/project/joomla/tracker/?action=TrackerItemBrowse&tracker_id=32
+Logo acima e à direita
+
+Role a tela e clique em Add new Tracker Item:
+http://joomlacode.org/gf/project/joomla/tracker/?action=TrackerItemAdd&tracker_id=32
+
+

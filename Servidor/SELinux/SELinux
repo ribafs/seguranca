@@ -1,0 +1,73 @@
+ssh root@143.110.215.113
+
+adduser ribafs
+passwd ribafs
+
+usermod -aG wheel ribafs
+
+dnf update
+
+reboot
+
+exit
+
+ssh root@143.110.215.113
+
+dnf install nano
+
+nano /etc/ssh/sshd_config
+
+Porta 55522
+LoginGraceTime 30
+PermitRootLogin no
+PasswordAuthentication no
+AllowUsers ribafs
+
+systemctl restart sshd
+
+Liberar SSH no SELinux
+
+ausearch -c 'sshd' --raw | audit2allow -M my-sshd
+
+semodule -i my-sshd.pp
+
+Sincronização da chave SSH do root com o ribafs
+
+rsync --archive --chown=ribafs:ribafs ~/.ssh /home/ribafs
+
+systemctl restart sshd
+
+exit
+
+ssh -p 44422 ribafs@IP
+
+
+ps -e --context
+ps -e --context | grep example_program
+firewall-cmd --list-lockdown-whitelist-commands
+
+Listar usuários permitidos
+sudo firewall-cmd --list-lockdown-whitelist-users
+
+Adicionar um usuário para a whitelist, como root execute:
+
+firewall-cmd --add-lockdown-whitelist-user=user
+
+getenforce
+
+Desabilitar SELinux
+
+sudo setenforce 0
+
+sudo ausearch -c 'firewalld' --raw | audit2allow -M my-firewalld
+sudo semodule -X 300 -i my-firewalld.pp
+
+sudo getenforce
+
+sudo dnf install httpd
+sudo systemctl enable httpd
+sudo systemctl start httpd
+
+ip addr show eth0 | grep inet | awk '{ print $2; }' | sed 's/\/.*$//'
+
+

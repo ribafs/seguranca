@@ -1,0 +1,66 @@
+Reforçando a Segurança para Sites
+
+Com foco em sites com Joomla mas não somente
+
+Dois pontos importantes:
+- Não existe segurança perfeita, então apenas podemos dificultar ao máximo
+- Aumentar a segurança significa aumentar trabalho, precisaremos fazer algum trabalho extra para que melhore a segurança
+
+Já imaginou se encontrassemos uma forma de deixar nosso site bem seguro?
+Vivo pensando nisso e acabei por ter uma ideia que irei compartilhar agora.
+
+Existem duas vertentes sobre segurança, uma diz que devemos evitar comentar sobre nossos planos pois se outros ficarem sabendo poderão usar contra nós. Mas a outra vertente diz que nosso plano compartilhado pode retornar depurado e melhorado. De qualquer forma estarei compartilhando pois acredito que a união faz a força.
+
+Vamos supor que temos um site na pasta "portal".
+
+Vamos criar dois usuários: 
+    - user_select. Este usuário tem apenas os privilégios de select e de insert no banco de dados, somente
+    - user_all. Este tem os privilégios necessários para administrar o site, mas não tem todos/all
+
+Vamos efetuar um backup completo do site, mas apenas de arquivos e diretórios. Para isso recomendo três opções:
+    - Akeeba Backup - https://www.akeebabackup.com/download.html
+    - Backup Simples - https://github.com/ribafs/com_simplebackup
+    - Manualmente
+
+Vamos restaurar o backup dos arquivos na pasta portal2 (ou outra que deseje)
+    - Vamos editar o configuration.php e alterar tanto o diretório quanto o usuário do banco:
+       	public $user = 'user_all';
+       	public $password = 'senhaforte';
+
+	    public $log_path = '/var/www/html/portal2/administrator/logs';
+	    public $tmp_path = '/var/www/html/portal2/tmp';
+
+No site que está em portal mude o usuário para o user_all e sua senha. Lembre de não conceder todos os privilégios, mas apenas os que forem necessários. 
+
+Para o usuário user_all:
+
+mysql -u root -p
+CREATE DATABASE dbportal CHARACTER SET utf8 COLLATE utf8_general_ci;
+GRANT SELECT, INSERT, UPDATE, DELETE, CREATE, DROP, INDEX, ALTER, CREATE TEMPORARY TABLES, LOCK TABLES ON dbportal.* TO 'user_all'@'localhost' IDENTIFIED BY 'yourpassword';
+
+Para o usuário user_select:
+
+GRANT SELECT, INSERT ON dbportal.* TO 'user_select'@'localhost' IDENTIFIED BY 'yourpassword';
+
+Com isso teremos dois sites, o portal e o portal2. O portal é nosso site para onde está apontando o domínio e que será visitado pelos usuários mas apenas com o usuário. Lembre que este site não deve ser usado pelo administrator, pois seu usuário não pode gravar nada no banco.
+
+O site portal2 é onde administraremos o nosso site, pois seu usuário tem privilégios suficientes.
+
+Ainda assim precisamos continuar fazendo backup de ambos. Um detalhe importante é que ao instalar extenxões daqui pra frente, precisará copiar os arquivos manualmente para o site portal ou então repetir todo o processo do backup, sendo que agora precisará efetuar o backup do portal2.
+
+Mudar as permissões dos arquivos mais importantes para 444 (somente leitura):
+index.php
+configuration.php
+templates/teutemplate/index.php
+
+Outros cuidados com a segurança:
+
+- PHP
+- Apache
+- MySQL
+- Joomla
+- Sistema operacional
+
+Detalhes em: http://ribafs.org/portal/joomla-3/seguranca.html
+
+Depois que chamamos pela primeira vez podemos remover o privilégio de insert e deixar somente o de select que funciona.

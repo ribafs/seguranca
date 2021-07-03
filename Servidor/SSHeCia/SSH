@@ -1,0 +1,47 @@
+Em sshd_config 'MaxAuthTries' limita o número de falhas de autenticação por conexão. O que é uma conexão?
+In sshd_config 'MaxAuthTries' limits the number of auth failures per connection. What is a connection?
+
+No caso do SSH, uma conexão é aquela estabelecida com a porta TCP do sshd (geralmente a porta 22). Omce sshd para de aceitar outras tentativas de autenticação, ele fecha a conexão e, neste ponto, a conexão é concluída.
+
+Antes que um usuário faça uma tentativa de autenticação, o protocolo SSH requer a negociação de criptografia e outras opções de protocolo, estabelecimento de chaves de sessão e troca de chaves de host. Portanto, cada nova conexão requer um pouco de trabalho não trivial: uma tempestade de tentativas de conexão SSH de várias fontes certamente poderia ser usada para DoS em um servidor.
+
+Uma tentativa de autenticação é uma tentativa de qualquer método de autenticação atualmente habilitado na configuração sshd. Por exemplo:
+
+    se o cliente oferece uma chave SSH para autenticação, cada chave oferecida conta como uma tentativa.
+    se o método de autenticação Kerberos / GSSAPI estiver habilitado, ver se o cliente pode ser autenticado conta como uma tentativa
+    cada senha digitada no prompt de autenticação de senha obviamente conta como uma.
+
+Os dois primeiros podem causar a situação que você está enfrentando: se você definir MaxAuthTries como um e a autenticação Kerberos / GSSAPI estiver habilitada, ela pode consumir a única tentativa antes mesmo de você tentar a autenticação por senha. Da mesma forma, se o seu cliente SSH tiver uma chave de autenticação disponível, mas você não adicionou sua chave pública ao sistema de destino ~ / .ssh / authorized_keys para o usuário de destino, a tentativa de autenticação de chave pública consumirá sua única tentativa e você venceu nem tente a autenticação por senha.
+
+Obs: sugestão:
+MaxAuthTries 3
+
+pam_unix, a biblioteca PAM que normalmente lida com a autenticação de senha, impõe um atraso de dois segundos após uma tentativa de autenticação com falha por padrão.
+
+Se a sua principal ameaça são worms e bots de adivinhação de senha em outros sistemas comprometidos na Internet, reduzir MaxAuthTries pode ser uma má jogada: uma vez que um bot não se cansa, ele sempre se reconectará e tentará novamente. Cada tentativa requer que você gaste alguma capacidade da CPU para negociações do protocolo SSH. Você desejará principalmente garantir que o bot não terá sucesso e, em segundo lugar, que o bot desperdiçará o máximo de seu tempo possível naquela conexão existente, com custo mínimo para você. Permitir várias tentativas de autenticação em uma conexão, mas responder ... muito ... lentamente ... fará exatamente isso.
+
+É também por isso que o sshd solicitará uma senha do cliente mesmo se a autenticação por senha estiver completamente desabilitada: o prompt é completamente falso e o cliente será rejeitado independentemente da senha inserida. Mas o cliente não tem como saber com certeza.
+
+Claro, se você permitir muitas tentativas de autenticação em uma conexão, o bot pode eventualmente encerrar a conexão de seu lado, se o programador do bot implementou um tempo limite para limitar a eficácia de tal "defesa tar-pit".
+
+https://unix.stackexchange.com/questions/418582/in-sshd-config-maxauthtries-limits-the-number-of-auth-failures-per-connection
+
+
+
+    MaxAuthTries
+
+Especifica o número máximo de tentativas de autenticação permitidas por conexão. Quando o número de falhas atinge a metade desse valor, as falhas adicionais são registradas. O padrão é 6.
+
+Man page - https://linux.die.net/man/5/sshd_config
+
+Definir o valor como 1 significa que seu servidor permitirá apenas 1 tentativa de login antes de bloqueá-lo. 
+
+https://security.stackexchange.com/questions/42239/what-effect-has-maxauthtries-1
+
+Quando a contagem de falhas de login atingir a metade do número, mensagens de erro serão gravadas no arquivo syslog detalhando a falha de login.
+
+Verificar
+
+grep MaxAuthTries /etc/ssh/sshd_con
+
+

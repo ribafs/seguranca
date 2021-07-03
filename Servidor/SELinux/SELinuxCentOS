@@ -1,0 +1,492 @@
+Instalação e Configuração do SELinux no CentOS 8.3
+
+Recomendação
+
+Instale e/ou habilite para enforcing o SELinux somente após configurar o SO e instalar, configurar o AMP e o CMS ou framework.
+
+Adicionar usuário comum
+
+adduser ribafs
+passwd ribafs
+
+Adicionar usuário ribafs ao grupo wheel, que dará acesso ao sudo
+
+usermod -aG wheel ribafs
+
+Instalação
+
+Quando o SELinux é instalado em seu sistema, ele pode estar habilitado ou desabilitado. Como também quando instalamos o CentOS 8.3 o SELinux pode já vir instalado e habilitado/enforcing ou não.
+
+Checando
+
+sudo sestatus
+
+sudo dnf update
+
+sudo dnf install -y policycoreutils setools setools-console setroubleshoot selinux-policy-targeted selinux-policy-devel setroubleshoot-server  mctrans libselinux-utils setools
+
+SELinux rotulando todos os arquivos com os devidos contextos
+
+sudo touch /.autorelabel
+
+O SELinux detectará o arquivo /.autorelabel no boot e, a seguir, rotulará novamente todos os arquivos com os contextos SELinux corretos. Se você tiver muitos arquivos, a instância pode ficar indisponível por um longo tempo. Você pode monitorar a instância no console da administração do VPS.
+
+sudo reboot
+
+Configuração
+
+• Para habilitar ou desabilitar o SELinux de forma permanente, altere seu arquivo de configuração. Defina a diretiva SELINUX como disabled, permissive ou enforcing conforme mostrado no exemplo abaixo.
+
+sudo nano /etc/selinux/config
+
+# This file controls the state of SELinux on the system.
+# SELINUX= can take one of these three values:
+#     enforcing - SELinux security policy is enforced.
+#     permissive - SELinux prints warnings instead of enforcing.
+#     disabled - No SELinux policy is loaded.
+SELINUX=enforcing
+# SELINUXTYPE= can take one of three values:
+#     targeted - Targeted processes are protected,
+#     minimum - Modification of targeted policy. Only selected processes are protected.
+#     mls - Multi Level Security protection.
+SELINUXTYPE=targeted
+
+sudo reboot
+
+Após alterar este arquivo precisa reiniciar o servidor para que as alterações tenham efeito.
+
+
+Liberando serviços no SELinux
+
+Liberar SSH no SELinux
+
+Liberar SSH em porta customizada
+
+sudo semanage port -l | grep ssh
+ssh_port_t                     tcp      22
+
+sudo semanage port -a -t ssh_port_t -p tcp 44422
+
+sudo semanage port -l | grep ssh
+ssh_port_t                     tcp      44422, 22
+
+
+Abrir a porta 44422 no FirewallD
+
+É sempre recomendável manter o serviço de Firewall em execução e permitir apenas serviços confiáveis.
+
+sudo firewall-cmd --add-port=44433/tcp --permanent
+sudo firewall-cmd --reload
+
+Agora podemos remover o serviço de SSH que roda na porta 22
+
+sudo firewall-cmd --remove-service=ssh --permanent
+sudo firewall-cmd --reload
+
+sudo systemctl restart sshd
+
+
+Liberar FirewallD no SELinux
+
+sudo ausearch -c 'firewalld' --raw | audit2allow -M my-firewalld
+
+sudo semodule -X 300 -i my-firewalld.pp
+
+
+Adicionar um usuário para a whitelist do firewalld, como root execute:
+
+firewall-cmd --add-lockdown-whitelist-user=user
+
+
+Apache
+
+Permitir que scripts e módulos HTTPD se conectem à rede, atualize a variável booleana correspondente
+
+sudo setsebool -P httpd_can_network_connect ON
+
+
+Para permitir ao Apache (/usr/sbin/httpd) escrever no diretório de logs (/var/log/audit/audit.log), como mostra o output, você pode executar: 
+    
+    semanage fcontext -a -t httpd_sys_rw_content_t 'logs'
+    
+    restorecon -v 'logs'.
+   
+
+sudo chcon -R -t httpd_sys_rw_content_t /var/www/html
+
+sudo systemctl restart httpd
+
+
+Alterar as permissões e o contexto de segurança do arquivo no SELinux:
+
+sudo chown -R ribafs:apache /var/www/wordpress
+
+sudo chcon -t httpd_sys_rw_content_t /var/www/wordpress -R
+    
+
+Para ver quais booleanos httpd estão ativados, use 
+
+semanage boolean -l | grep httpd | grep -v off
+
+
+/var/www/ribafs/log
+
+sudo ls -dlZ /var/www/ribafs/log/
+
+sudo semanage fcontext -a -t httpd_log_t "/var/www/ribafs/log(/.*)?"
+ 
+Em seguida, use o comando restorecon para aplicar essas alterações e persisti-las entre as reinicializações:
+
+sudo restorecon -R -v /var/www/ribafs/log
+
+Você pode listar os contextos mais uma vez para ver as alterações:
+
+sudo ls -dlZ /var/www/ribafs/log/
+ 
+A saída reflete o tipo de contexto atualizado:
+
+Output
+
+drwxr-xr-x. 2 root root unconfined_u:object_r:httpd_log_t:s0 6 Apr 23 23:51 /var/www/ribafs/log/
+
+
+Os diretórios do seu site precisam de httpd_sys_content_t
+
+semanage fcontext -a -t httpd_sys_content_t "/var/www/ribafs(/.*)?"
+
+restorecon -Rv /var/www/ribafs
+
+semanage fcontext -a -t httpd_sys_content_t "/var/www/despertai(/.*)?"
+
+restorecon -Rv /var/www/despertai
+
+
+O booleano httpd_unified é desativado por padrão com CentOS/RHEL 7. Isso fortalece a segurança, pois todos os arquivos e diretórios que precisam ser gravados pelo Apache requer o contexto httpd_sys_rw_content_t. No entanto, para WordPress, isso pode impedir os usuários de upload de arquivos ou instalação de plug-ins. Se você decidir habilitar isso e permitir leitura, gravação e execução, em seguida, use o seguinte comando:
+
+Execute o seguinte comando para definir uma política universal do Apache:
+
+sudo setsebool -P httpd_unified 1
+
+
+Instruir o SELinux para permitir que o Apache execute o código PHP via PHP-FPM.
+
+sudo setsebool -P httpd_execmem 1
+    
+
+Ao visualizar uma lista de suas variáveis booleanas, você deve ver agora que está definido como ON.
+
+sudo getsebool -a | grep "httpd_can"
+
+
+MariaDB
+
+Liberando MariaDB no FirewallD
+
+firewall-cmd --permanent --zone=public --add-service=mysql
+
+firewall-cmd --reload
+
+Liberar no SELinux
+
+getenforce
+
+Colocar temporariamente no modo eprmissive
+
+sudo semanage permissive -a mysqld_t
+
+sudo dnf install selinux-policy-devel
+
+cd /usr/share/mysql/policy/selinux/
+
+make -f /usr/share/selinux/devel/Makefile mariadb-server.pp
+sudo semodule -i mariadb-server.pp
+
+sudo dnf install policycoreutils
+
+sudo semanage fcontext --list | grep mysqld_db_t
+
+sudo semanage fcontext -a -t mysqld_db_t "/mariadb/data(/.*)?"
+sudo restorecon -Rv /mariadb/data
+
+ls --directory --scontext /mariadb/data
+
+sudo semanage fcontext --list | grep mysqld_log_t
+
+sudo semanage fcontext -a -t mysqld_log_t "/var/log/mysql(/.*)?"
+sudo restorecon -Rv /var/log/mysql
+
+ls --directory --scontext /var/log/mysql
+
+sudo semanage fcontext --list | grep mysqld_etc_t
+
+sudo semanage fcontext -a -t mysqld_etc_t "/etc/mariadb(/.*)?"
+sudo restorecon -Rv /etc/mariadb
+
+ls --directory --scontext /etc/mariadb
+
+SELinux e MariaDB em porta diferente
+
+sudo semanage port -a -t mysqld_port_t -p tcp 3307 
+
+Generating SELinux Policies with audit2allow
+
+sudo semodule -DB
+
+sudo semanage permissive -a mysqld_t
+
+sudo grep mysqld /var/log/audit/audit.log | audit2allow -M mariadb_local
+sudo semodule -i mariadb_local.pp
+
+sudo semanage permissive -d mysqld_t
+
+sudo setmodule -B
+
+https://mariadb.com/kb/en/selinux/
+
+
+Contexto correto para o Wordpress
+
+Execute o seguinte comando para definir o contexto SELinux correto para o diretório /var/www/wordpress e seu conteúdo
+
+sudo semanage fcontext -a -t httpd_sys_rw_content_t \
+"/var/www/wordpress(/.*)?"
+
+Para que as alterações do SELinux tenham efeito, execute o seguinte comando:
+
+sudo restorecon -Rv /var/www/wordpress
+
+
+Para mostrar os diferentes interruptores que podem ser ligados ou desligados para http, o que eles fazem e seus status atuais:
+
+semanage boolean -l | less | grep http
+
+
+Para alterar qualquer uma das configurações, podemos usar o comando setsebool. Como exemplo, vamos considerar o acesso de gravação de FTP anônimo:
+
+Consultar
+
+getsebool httpd_anon_write
+
+Isso nos mostra que a chave está desligada no momento:
+
+httpd_anon_write --> off
+
+Em seguida, alteramos o booleano para habilitá-lo:
+
+setsebool httpd_anon_write on
+
+Verificar o valor novamente deve mostrar a alteração:
+getsebool httpd_anon_write
+
+httpd_anon_write --> on
+
+Os booleanos alterados não são permanentes. Eles voltam aos valores anteriores após uma reinicialização. Para tornar as coisas permanentes, podemos usar a opção -P com o comando setsebool.
+
+setsebool httpd_anon_write -P on
+
+
+Podemos executar o comando ps com alguns sinalizadores para mostrar o processo Apache em execução em nosso servidor:
+
+ps -efZ | grep httpd
+
+
+Podemos usar o comando sesearch para verificar o tipo de acesso permitido para o daemon httpd:
+
+sesearch --allow --source httpd_t --target httpd_sys_content_t --class file
+
+
+Para fazer as coisas funcionarem normalmente, vamos mudar o tipo de arquivo com o comando restorecon. A opção -v mostra a alteração dos rótulos de contexto:
+
+restorecon -v /var/www/ribafs/index.html
+
+
+Para alterar permanentemente o contexto do nosso arquivo index.html em /var/www/ribafs, temos que seguir um processo de duas etapas.
+
+• Primeiro, executamos o comando semanage fcontext. Isso gravará o novo contexto no arquivo /etc/selinux/targeted/contexts/files/file_contexts.local. Mas não vai renomear o próprio arquivo. Faremos isso para os dois diretórios.
+     
+semanage fcontext --add --type httpd_sys_content_t "/var/www(/.*)?"
+semanage fcontext --add --type httpd_sys_content_t "/var/www/ribafs(/.*)?"
+
+Para ter certeza, podemos verificar o banco de dados de contexto do arquivo (observe que estamos usando o arquivo file_contexts.local):
+
+cat /etc/selinux/targeted/contexts/files/file_contexts.local | less
+
+Você deve ver os contextos atualizados:
+# This file is auto-generated by libsemanage
+# Do not edit directly.
+
+/var/www(/.*)?    system_u:object_r:httpd_sys_content_t:s0
+/var/www/ribafs(/.*)?    system_u:object_r:httpd_sys_content_t:s0
+
+A seguir, executaremos o comando restorecon. Isso irá rotular novamente o arquivo ou diretório com o que foi registrado na etapa anterior:
+
+restorecon -Rv /var/www
+
+Isso deve redefinir o contexto em três níveis: o diretório de nível superior /var/www, o diretório /var/www/ribafs abaixo dele e o arquivo index.html em /var/www/ribafs:
+
+Relabeled /var/www from unconfined_u:object_r:default_t:s0 to unconfined_u:object_r:httpd_sys_content_t:s0
+Relabeled /var/www/ribafs from unconfined_u:object_r:default_t:s0 to unconfined_u:object_r:httpd_sys_content_t:s0
+Relabeled /var/www/ribafs/index.html from unconfined_u:object_r:default_t:s0 to unconfined_u:object_r:httpd_sys_content_t:s0
+
+Se tentarmos acessar a página da web, ela deve funcionar.
+
+Existe uma ferramenta bacana chamada matchpathcon que pode ajudar a solucionar problemas relacionados ao contexto. Este comando examinará o contexto atual de um recurso e o comparará com o que está listado no banco de dados de contexto SELinux. Se for diferente, irá sugerir a mudança necessária. Vamos testar isso com o arquivo /www/html/index.html. Usaremos a sinalização -V que verifica o contexto:
+
+matchpathcon -V /var/www/ribafs/index.html
+
+A saída do matchpathcon deve mostrar que o contexto foi verificado.
+
+/var/www/ribafs/index.html verified.
+
+
+exibir todas as regras permitidas (muitas regras exibidas)
+sesearch --allow 
+
+exibir regras que o domínio [httpd_t] tem permissão para acessar
+sesearch -s httpd_t --allow 
+
+exibir regras permitidas que o domínio pode acessar ao tipo [httpd_sys_script_exec_t]
+sesearch -t httpd_sys_script_exec_t --allow 
+
+
+== Solução de problemas SELinux
+
+Primeiro, verifique o status do SELinux e certifique-se de que ele esteja definido como permissivo, o que você fez no início da parte 7.
+
+sestatus
+
+Verifique se o SELinux está ativado, se a política está "direcionada" e se o modo está definido como "permissivo":
+
+Status do SELinux: habilitado
+
+Nome da política carregada: direcionada
+
+Modo atual: permissivo
+
+Ao solucionar problemas do SELinux, pode ser útil limpar o log de auditoria e reinicializar. Isso vai torne mais fácil ler os registros e não se confunda com entradas mais antigas enquanto você está solucionando problemas no modo permissivo.
+
+1) Limpe o audit.log e reinicie
+/var/log/audit/audit.log
+reboot
+
+2) Use o comando sealert para verificar se há problemas no audit.log
+sealert -a /var/log/audit/audit.log
+
+Nota: Você pode executar um resumo dos relatórios de log de auditoria usando aureport -a. Isso fornecerá um resumo de relatórios do log de auditoria (/var/log/audit/audit.log). Você pode verificar os registros de hoje usando 
+
+aureport -a -ts hoje.
+
+Depois de executar o comando sealert, na parte superior do relatório, você verá algo semelhante a: 100% feito encontrou 7 alertas em 
+/var/log/audit/audit.log
+
+A saída pode parecer muito longa no início, mas não se preocupe! Depois de começar a olhar para cada relatório você verá que é realmente muito útil. Ele começará com "SELinux está impedindo" e fornecerá um nível de confiança para cada correção sugerida. Vou listar alguns problemas comuns, junto com as etapas que você precisará levar para resolver o problema.
+
+Problema 1: SELinux está impedindo audispd de obter acesso getattr no arquivo /etc/ld.so.cache.
+
+Isso forneceu uma solução fácil, detalhada ali mesmo no relatório:
+
+Se você quiser corrigir o rótulo. O rótulo padrão de /etc/ld.so.cache deve ser ld_so_cache_t. Então você pode correr restorecon. Fazer:
+
+/sbin/restorecon -v /etc/ld.so.cache
+
+Problema 2: SELinux está impedindo audispd de abrir acesso ao arquivo /etc/ld.so.cache.
+
+Isso está vinculado ao primeiro problema e a mesma correção é sugerida, portanto, passaremos para o próximo.
+
+Problema 3: O SELinux está impedindo que / usr / sbin / sedispatch execute o acesso ao arquivo sedispatch.
+
+Isso tinha um nível de confiança de 100%, com a correção sugerida abaixo:
+
+ausearch -c '/ usr / sbin / sedispatch' --raw | audit2allow -M my-
+
+sedispatch
+
+semodule -i my-sedispatch.pp
+
+Problema 4: SELinux está impedindo / usr / sbin / httpd de acesso name_connect no tcp_socket porta 9922.)
+
+Na verdade, isso é necessário, pois o FTP não é usado para atualizar o WordPress ou instalar plug-ins, e o Apache precisa se conectar em SSH.
+
+setsebool httpd_can_network_connect = 1
+
+Enxague e repita. Pode ser necessário fazer isso algumas vezes, implementando a correção, limpando o log, reinicializando. Quando estiver satisfeito de que não há mais problemas relatados pelo SELinux, você pode agora defina-o como ‘ativado’!
+vi / etc / sysconfig / selinux
+
+Altere o SELinux para ‘Enforcing’ e reinicie.
+
+SELINUX=enforcing
+
+reboot
+
+Assim que o servidor for inicializado, faça login e verifique getenforce, que deve relatar ‘Enforcing’.
+
+
+Para visualizar o mapeamento dos usuários, podemos executar o comando::
+
+semanage login -l
+
+Nome de usuário      Usuário do SELinux   Intervalo MLS/MCS    Serviço
+
+__default__          unconfined_u         s0-s0:c0.c1023       *
+root                 unconfined_u         s0-s0:c0.c1023       *
+
+
+Para ver quais usuários SELinux estão disponíveis no sistema, podemos executar o comando de usuário semanage:
+
+semanage user -l
+
+Alteramos o mapeamento de usuário SELinux do regularuser. Mapearemos regularuser para user_u.
+
+semanage login -a -s user_u regularuser
+
+Se agora executarmos o comando id -Z novamente para ver o contexto SELinux para regularuser, veremos que a saída é bem diferente do que vimos antes: regularuser agora está mapeado para user_u.
+
+Vejamos outro exemplo de restrição de acesso do usuário por meio do SELinux. Execute esses comandos a partir da sessão root.
+Por padrão, o SELinux permite que usuários mapeados para a conta guest_t executem scripts a partir de seus diretórios pessoais. Podemos executar o comando getsebool para verificar o valor booleano:
+
+getsebool allow_guest_exec_content
+
+A saída mostra que o sinalizador está ativado.
+
+guest_exec_content --> on
+
+Para verificar seu efeito, vamos primeiro alterar o mapeamento do usuário SELinux para a conta guestuser que criamos no início deste tutorial. Faremos isso como usuário root.
+
+semanage login -a -s guest_u guestuser
+Nome de usuário      Usuário do SELinux   Intervalo MLS/MCS    Serviço
+
+__default__          unconfined_u         s0-s0:c0.c1023       *
+regularuser          user_u               s0                   *
+root                 unconfined_u         s0-s0:c0.c1023       *
+
+Podemos verificar a ação executando o comando:
+
+semanage login -l
+
+Alteramos a configuração booleana allow_guest_exec_content para off e verificamos:
+
+setsebool allow_guest_exec_content off
+getsebool allow_guest_exec_content
+
+guest_exec_content --> off
+
+grep "SELinux is preventing" /var/log/messages
+
+Se você quiser permitir que convidados/guest possam executar conteúdo, então você deve informar o SELinux sobre isso habilitando o booleano 'guest\_exec\_content'.
+...
+setsebool -P guest\_exec\_content 1
+
+Mas esta lista mostra httpd_t como um dos domínios? Vamos tentar o mesmo comando com um filtro:
+
+seinfo -ruser_r -x | grep httpd
+
+O primeiro comando é ausearch. Podemos usar este comando se o daemon auditd estiver rodando. No trecho de código a seguir, estamos tentando examinar todas as mensagens de erro relacionadas ao daemon httpd. Certifique-se de estar em sua conta root:
+
+ausearch -m avc -c httpd
+
+Já vimos a ferramenta sealert. Este comando pode ser usado com o valor de id da mensagem de erro registrada no arquivo /var/log/messages.
+No fragmento de código a seguir, examinamos novamente o arquivo /var/log/message em busca de erros relacionados ao SELinux:
+
+cat /var/log/messages | grep "SELinux is preventing" | less
+
+

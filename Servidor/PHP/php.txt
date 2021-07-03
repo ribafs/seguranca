@@ -1,0 +1,67 @@
+Reforçar a segurança do PHP
+
+Uma boa forma de melhorar a segurança do php é instalando o phpsecinfo:
+
+https://github.com/funkatron/phpsecinfo 
+
+http://phpsec.org/projects/phpsecinfo/
+
+E corrigir os erros apontados com as respectivas recomendações.
+
+Algumas sugestões para reforçar a segurança do PHP:
+
+edite o php.ini e faça as alterações:
+
+nano /etc/php/7.0/apache2/php.ini
+
+ALERTA – ao efetuar as alterações abaixo faça uma a uma, sempre reiniciando o apache e abrindo o site e efetuando um refresh para testar. Caso tenha problema desfaça ou ajuste o parâmetro com problema.
+
+disable_functions = exec,system,shell_exec,passthru,
+html_errors = Off
+mail.add_x_header = Off
+session.name = NEWSESSID
+
+Na linha com disable_functions já existem várias funções por padrão que são desabilitadas. Não as remova, apenas adicione as recomendações acima ao início, separadas por vírgula.
+Com a ajuda do PHPsecinfo também ajustei estes abaixo:
+
+allow_url_fopen = Off
+upload_tmp_dir = /var/www/html/phpup
+
+Criei o diretório /var/www/html/phpup
+Estes dois últimos parâmetros devem ser adotados com cuidado, de acordo com a sua necessidade. Abaixo são os valores default na versão 7 do php:
+
+post_max_size = 8M
+upload_max_filesize = 2M
+
+
+sudo service apache2 restart
+
+Depois dos ajustes acima alguma coisa pode não funcionar. Então efetue os ajustes devidos, sem exagerar.
+
+
+Reforçando a Segurança do PHP
+
+Filtrando dados com PHP
+https://phpro.org/tutorials/Filtering-Data-with-PHP.html
+
+Segurança no PHP
+https://www.phpro.org/tutorials/PHP-Security.html
+
+Top 7 PHP Security Blunders
+https://www.sitepoint.com/php-security-blunders/
+
+http://www.phpfreaks.com/tutorial/php-security
+
+http://phpsecurity.org/
+
+https://www.owasp.org/index.php/PHP_Security_Cheat_Sheet
+
+http://phpsec.org/projects/phpsecinfo/index.html
+
+
+php.ini
+
+display_errors = Off
+expose_php = Off
+date.timezone = America/Fortaleza
+disable_functions = proc_open, popen, disk_free_space, set_time_limit, leak, tempfile, exec,system, shell_exec, passthru, curl_exec, curl_multi_exec, parse_ini_file, show_source, apache_get_modules,apache_get_version,apache_getenv,apache_note, apache_setenv, disk_free_space, diskfreespace, dl, highlight_file, ini_alter, ini_restore, openlog, proc_nice, symlink, phpinfo 

@@ -1,0 +1,221 @@
+Monitorando servidores via Logs
+
+Como é a segurança nos seus servidores? Você verificou os logs recentemente? Esses arquivos de log contêm informações importantes sobre a segurança de seus sistemas. Examinar esses vários arquivos de log pode ser uma tarefa árdua - especialmente quando você precisa verificar os arquivos de log em todos os sistemas da rede.
+
+tail -f /var/log/secure
+
+tail -f /var/log/messages
+
+Monitorar quem está tentando acessar o servidor em tempo real
+
+sudo tcpdump -n -e -ttt -i eth0
+
+Ctrl+C - sair
+
+grep CRON /var/log/syslog
+
+service rsyslog restart
+
+grep -i cron /var/log/syslog|tail -2
+
+
+tail -fn 50 /var/log/apache2/error.log
+
+
+grep CRON /var/log/syslog
+
+sudo service rsyslog restart
+
+grep -i cron /var/log/syslog|tail -2
+
+
+Ainda bem que existem ferramentas como Graylog disponíveis. Graylog é uma plataforma de gerenciamento de logs de código aberto usada para monitorar logs em sistemas associados a uma rede. Graylog usa MongDB para armazenar informações, portanto, é perfeitamente capaz de escalar para atender às suas necessidades.
+
+Graylog pode ajudá-lo a coletar, organizar, analisar e extrair dados. Com essas informações em mãos, você pode proteger e otimizar melhor seus servidores.
+
+Instalação do Graylog
+
+sudo apt update; sudo apt upgrade -y
+
+sudo apt install -y apt-transport-https openjdk-11-jre-headless uuid-runtime pwgen curl dirmngr
+
+java -version
+
+Instalar Elasticsearch
+
+O Elasticsearch armazena logs provenientes de fontes externas e oferece pesquisa e análise distribuídas em tempo real com a interface da web RESTful.
+
+Baixe e instale a chave de assinatura GPG.
+
+wget -qO - https://artifacts.elastic.co/GPG-KEY-elasticsearch | sudo apt-key add -
+
+Configure o repositório Elasticsearch em seu sistema executando o comando abaixo.
+
+echo "deb https://artifacts.elastic.co/packages/oss-6.x/apt stable main" | sudo tee -a /etc/apt/sources.list.d/elastic-6.x.list
+
+Atualizar repositórios e instalar
+
+sudo apt update
+sudo apt install -y elasticsearch-oss
+
+Configurar setando o cluster name para Graylog 
+
+sudo nano /etc/elasticsearch/elasticsearch.yml
+
+cluster.name: graylog
+
+Descomente a linha
+
+action.auto_create_index: false
+
+Iniciar o serviço para carregar as novas configurações
+
+sudo systemctl daemon-reload
+
+sudo systemctl start elasticsearch
+
+sudo systemctl enable elasticsearch
+
+Aguarde em torno de um minuto para deixar o Elasticsearch iniciar completamente
+
+O Elasticsearch estará escutando na porta 9200
+
+Testando
+
+curl -X GET http://localhost:9200
+
+{
+  "name" : "vQklpl4",
+  "cluster_name" : "graylog",
+  "cluster_uuid" : "jLztxJoOROK-XuZkoKJr6A",
+  "version" : {
+    "number" : "6.8.11",
+    "build_flavor" : "oss",
+    "build_type" : "deb",
+    "build_hash" : "00bf386",
+    "build_date" : "2020-07-09T19:08:08.940669Z",
+    "build_snapshot" : false,
+    "lucene_version" : "7.7.3",
+    "minimum_wire_compatibility_version" : "5.6.0",
+    "minimum_index_compatibility_version" : "5.0.0"
+  },
+  "tagline" : "You Know, for Search"
+}
+
+Instalar o Mongodb
+
+O Mongodb armazena as configurações do Graylog. O Graylog requer MongoDB v3.6, 4.0 ou 4.2.
+
+sudo apt update
+
+sudo apt install -y mongodb-server
+sudo systemctl start mongodb
+sudo systemctl enable mongodb
+
+Instalar Graylog Server
+
+O Graylog Server lê os dados do Elasticsearch para consultas de pesquisa provenientes dos usuários e os exibe para eles por meio da interface da web do Graylog.
+
+Baixe e instale o pacote de configuração do repositório Graylog 3.3.
+
+wget https://packages.graylog2.org/repo/packages/graylog-3.3-repository_latest.deb
+
+sudo dpkg -i graylog-3.3-repository_latest.deb
+
+sudo apt update
+
+sudo apt install -y graylog-server
+
+Gerar uma senha para o usuário
+
+pwgen -N 1 -s 96
+
+Output:
+HRy1WNsMQIWF228SsbdQCnCsTBL7wVez28UsZXI8PXqStx5DQe3PAmtpm8PNm6g8K44fVFNo4c7Bvp4WCOyxGiSXvdhOXl8w
+
+sudo nano /etc/graylog/server/server.conf
+
+E adicione assim:
+
+password_secret = HRy1WNsMQIWF228SsbdQCnCsTBL7wVez28UsZXI8PXqStx5DQe3PAmtpm8PNm6g8K44fVFNo4c7Bvp4WCOyxGiSXvdhOXl8w
+
+Agora, gere uma senha hash (sha256) para o usuário root (não deve ser confundida com o usuário do sistema, o usuário root do graylog é admin).
+Você precisará dessa senha para fazer login na interface da web do Graylog. A senha do administrador não pode ser alterada na interface da web. 
+Portanto, você deve editar esta variável para definir.
+
+Substitua a senha pela escolha de sua senha.
+
+echo -n password | sha256sum
+
+Output:
+5e884898da28047151d0e56f8dc6292773603d0d6aabbdd62a11ef721d1542d8
+
+sudo nano /etc/graylog/server/server.conf
+
+Adicione assim:
+
+root_password_sha2 = 5e884898da28047151d0e56f8dc6292773603d0d6aabbdd62a11ef721d1542d8
+
+Configurar a interface web do Graylog
+
+A partir da versão Graylog 2.x, a interface da web está sendo servida diretamente pelo servidor Graylog. Habilite a interface da web Graylog editando o arquivo server.conf.
+
+sudo nano /etc/graylog/server/server.conf
+
+Atualize a entrada abaixo com o endereço IP do sistema, pelo qual você acessará a interface da web do Graylog.
+
+http_bind_address = 192.168.0.10:9000
+
+Se acontecer de você acessar o Graylog usando um endereço IP público devido ao NATing, atualize os valores abaixo. Caso contrário, pule.
+
+http_external_uri = http://public_ip:9000/
+
+Habilitar e iniciar o serviço do Graylog
+
+sudo systemctl daemon-reload
+
+sudo systemctl start graylog-server
+
+sudo systemctl enable graylog-server
+
+Continue procurando os logs de inicialização do servidor Graylog. Este log será útil para você solucionar problemas do Graylog em caso de problemas.
+
+sudo tail -f /var/log/graylog-server/server.log
+
+Ao iniciar com sucesso o servidor Graylog, você deve obter a seguinte mensagem no arquivo de log.
+2020-08-03T16:03:06.326-04:00 INFO  [ServerBootstrap] Graylog server up and running.
+
+Acesso Graylog pela web
+
+A interface da web Graylog agora estará escutando na porta 9000. Abra seu navegador e aponte para.
+
+http://ip.add.re.ss:9000
+
+Faça login com o nome de usuário admin e a senha que você configurou em root_password_sha2 no arquivo server.conf.
+
+Depois de fazer login, você veria a página de primeiros passos.
+
+Clique em System >> Overview para saber o status do servidor Graylog.
+
+Criar entrada Graylog
+
+Referências
+
+https://www.itzgeek.com/how-tos/linux/ubuntu-how-tos/how-to-install-graylog-on-ubuntu-20-04.html
+
+https://www.howtoforge.com/install-and-configure-graylog-monitoring-server-ubuntu-2004/
+
+https://www.techrepublic.com/article/how-to-install-the-graylog-system-log-manager-on-ubuntu-server-20-04/
+
+https://morais.eti.br/2020/10/05/instalar-e-configurar-graylog-monitoring-server-no-ubuntu-20-04/
+
+How To Install and Use GoAccess Web Log Analyzer on Ubuntu 20.04
+https://www.digitalocean.com/community/tutorials/how-to-install-and-use-goaccess-web-log-analyzer-on-ubuntu-20-04
+
+Install Splunk Log Analyzer Tool on Ubuntu 20.04
+https://www.atlantic.net/vps-hosting/install-splunk-log-analyzer-tool-on-ubuntu-20-04/
+
+Monitoring Linux Logs with Kibana and Rsyslog
+https://devconnected.com/monitoring-linux-logs-with-kibana-and-rsyslog/
+
+

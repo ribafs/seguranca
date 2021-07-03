@@ -1,0 +1,11 @@
+ModSecurity
+
+Uma importante ferramenta para a segurança de aplicativos e sites web
+
+https://www.solvps.com/blog/?p=559
+https://www.liquidweb.com/kb/whitelisting-in-modsec/
+https://www.modsecurity.org/CRS/Documentation/exceptions.html
+https://malware.expert/tutorial/how-to-whitelist-ip-address-with-modsecurity/
+https://www.trustwave.com/en-us/resources/blogs/spiderlabs-blog/modsecurity-advanced-topic-of-the-week-updated-exception-handling/
+https://bluehat.site/seguranca/46-protegendo-seu-servidor-web-apache-contra-ataques-hackers-com-modsecurity
+https://curiousviral.com/install-and-configure-mod-security/

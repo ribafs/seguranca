@@ -1,0 +1,82 @@
+Reforçando a segurança de servidores Ubuntu 20.04
+
+
+Evite usar serviços como FTP, Telnet e Rlogin/Rsh no Linux
+
+Minimize a quantidade de pacotes instalador. Instale somente o estritamente necessário. Assim minimizará as chances de vulnerabilidade.
+
+Para remover
+
+sudo dpkg --list
+sudo dpkg --info packageName
+sudo apt remove --purge packageName
+
+
+Idealmente instale apenas um serviço por servidor. 
+
+Exemplo: num servidor instale o Apache com PHP. Noutro servidor o MariaDB. Noutro o servidor de e-mail. Assim terá mais segurança e disponibilidade.
+
+
+Atualizações
+
+Mantenha todos os pacotes do Ubuntu atualizados, inclusive os pacotes de terceiros como o Apache, PHP, MariaDB, etc.
+O Joomla e todas as suas extensões também devem ser atualizadas com frequência, Acesse com frequência o administrator apra ver os avisos de atualização.
+
+sudo apt update; sudo apt upgrade -y
+
+
+Como verifico se nenhuma conta possui senhas vazias?
+
+sudo awk -F: '($2 == "") {print}' /etc/shadow
+
+
+Certifique-se de que nenhuma conta diferente do root possui UID definido como 0. Apenas a conta root tem UID 0 com permissões totais para acessar o sistema. Digite o seguinte comando para exibir todas as contas com UID definido como 0:
+
+sudo awk -F: '($3 == "0") {print}' /etc/passwd
+
+
+Realize backups regulares
+
+Podemos criar snapshots no DigitalOcean e também realizar backups dos sites em Joomla com o Akeeba.
+Também temos o https://github.com/ribafs/generic-backup que gera o backup de qualquer site ou aplicativo, dos arquivos e do banco em MySQL.
+Após realizar o backup remova do servidor, pois ele não tem autenticação.
+
+
+Segurança em servidor tipo VPS
+
+https://www.youtube.com/watch?v=WXL37SjSs9g&feature=youtu.be&fbclid=IwAR10lnvZ6CHIN63fAvFi2c7R2pS52XyIRd2-8iXorkmibniDqJjByd0A0qI
+
+- Acesso SSH com chave criptografada. Criar chave SSH no desktop usando senha
+- fail2bn
+- Desabilitar o acesso com root ao SSH
+- Update e upgrade do sistema. Sempre a última versão LTS da distribuição
+- Habilitando o firewall
+- Bloquear acesso com root
+
+Referências
+
+https://www.maketecheasier.com/logcheck-analyses-log-files-linux/
+
+https://www.digitalocean.com/community/tutorials/initial-server-setup-with-ubuntu-18-04
+
+https://implex.io/posts/ubuntu-20-04-setup/
+
+https://www.cyberciti.biz/faq/apt-get-apticron-send-email-upgrades-available/
+
+https://www.cyberciti.biz/faq/how-to-keep-debian-linux-patched-with-latest-security-updates-automatically/
+
+https://www.cyberciti.biz/faq/unix-linux-password-cracking-john-the-ripper/
+
+https://www.cyberciti.biz/tips/linux-check-passwords-against-a-dictionary-attack.html
+
+https://linuxconfig.org/ubuntu-20-04-list-services
+
+https://geek.linuxman.pro.br/geek/ubuntu-pronto-para-guerra
+
+https://www.thefanclub.co.za/how-to/how-secure-ubuntu-1604-lts-server-part-1-basics 
+
+https://linux-audit.com/ubuntu-server-hardening-guide-quick-and-secure/
+
+https://hostpresto.com/community/tutorials/how-to-install-and-use-lynis-on-ubuntu-14-04/
+
+

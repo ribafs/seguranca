@@ -1,0 +1,244 @@
+Implementação do SSL autoassinado
+
+O TLS, ou “segurança de camada de transporte” — e seu antecessor, o SSL — são protocolos usados para envolver o tráfego normal em um pacote protegido, criptografado. Ao usar esta tecnologia, os servidores podem enviar informações com segurança aos seus clientes sem que suas mensagens sejam interceptadas ou lidas por terceiros.
+
+Neste guia, mostraremos como criar e usar um certificado SSL auto-assinado com o servidor Web Apache no Ubuntu 20.04.
+
+Nota: um certificado auto-assinado irá criptografar a comunicação entre seu servidor e qualquer cliente. No entanto, uma vez que ele não é assinado por nenhuma das autoridades de certificados confiáveis incluídas com navegadores Web e sistemas operacionais, os usuários não podem usar o certificado para validar a identidade do seu servidor automaticamente. Como resultado, seus usuários irão ver um erro de segurança ao visitar seu site.
+
+Devido a esta limitação, certificados auto-assinados não são adequados para um ambiente em produção que atenda ao público. Eles são normalmente usados para testes, ou para proteger serviços não críticos usados por um único usuário ou um pequeno grupo de usuários que possam estabelecer confiança na validade do certificado através de canais de comunicação alternativos.
+
+Para uma solução de certificado mais pronta para produção, confira o Let’s Encrypt, uma autoridade certificadora gratuita.
+
+sudo apt update
+
+Liberar as portas no ufw
+
+sudo ufw allow "Apache Full"
+
+Habilitar o módulo SSL
+
+sudo a2enmod ssl
+
+apres
+
+Agora que o Apache está pronto para usar criptografia, podemos passar para a geração de um novo certificado SSL. O certificado irá armazenar algumas informações básicas sobre seu site, e será acompanhado por um arquivo de chave que permite ao servidor lidar com segurança com dados criptografados.
+
+Podemos criar a chave SSL e os arquivos de certificado com o comando openssl:
+
+sudo openssl req -x509 -nodes -days 365 -newkey rsa:2048 -keyout /etc/ssl/private/apache-selfsigned.key -out /etc/ssl/certs/apache-selfsigned.crt
+
+Depois de inserir o comando, você será levado a um prompt onde você pode inserir informações sobre seu site. Antes de passarmos por isso, vamos ver o que está acontecendo no comando que estamos emitindo:
+    • openssl: esta é a ferramenta de linha de comando para criação e gerenciamento de certificados OpenSSL, chaves e outros arquivos. 
+    • req -x509: isto especifica que queremos usar o gerenciamento X.509 de solicitação de assinatura de certificado (CSR). O X.509 é um padrão de infraestrutura de chave pública ao qual o SSL e o TLS aderem para gerenciamento de chaves e certificados. 
+    • -nodes: isso diz ao OpenSSL para pular a opção de proteger nosso certificado com uma frase secreta. Precisamos que o Apache consiga ler o arquivo, sem a intervenção do usuário, quando o servidor for iniciado. Uma frase secreta impediria que isso acontecesse porque teríamos que digitá-la após cada reinício. 
+    • -days 365: esta opção define o período de tempo em que o certificado será considerado válido. Aqui, nós configuramos ela para um ano. Muitos navegadores modernos irão rejeitar quaisquer certificados que sejam válidos por mais de um ano. 
+    • -newkey rsa:2048: isso especifica que queremos gerar um novo certificado e uma nova chave ao mesmo tempo. Não criamos a chave necessária para assinar o certificado em um passo anterior, então precisamos criá-la junto com o certificado. A parte rsa:2048 diz a ele para criar uma chave RSA com 2048 bits. 
+    • -keyout: esta linha diz ao OpenSSL onde colocar o arquivo de chave privada gerado que estamos criando. 
+    • -out: isso diz ao OpenSSL onde colocar o certificado que estamos criando. 
+
+Preencha os prompts devidamente. A linha mais importante é aquela que requisita o Common Name. Você precisa digitar o nome do host que usará para acessar o servidor ou o IP público do mesmo. É importante que este campo corresponda ao que você colocar na barra de endereços do seu navegador para acessar o site, pois uma incompatibilidade irá causar mais erros de segurança.
+
+A lista completa de prompts será algo parecido com isto:
+
+Country Name (2 letter code) [XX]:US
+State or Province Name (full name) []:Example
+Locality Name (eg, city) [Default City]:Example 
+Organization Name (eg, company) [Default Company Ltd]:Example Inc
+Organizational Unit Name (eg, section) []:Example Dept
+Common Name (eg, your name or your server's hostname) []:your_domain_or_ip
+Email Address []:webmaster@example.com
+
+Ambos os arquivos que você criou serão colocados nos subdiretórios apropriados em /etc/ssl.
+
+Em seguida, atualizaremos nossa configuração do Apache para usar o novo certificado e chave.
+
+Configurando o Apache para usar SSL
+
+Adicionar nosso certificado ao apache, em /etc/apache2/sites-available/
+
+Criar
+
+sudo nano /etc/apache2/sites-available/your_domain_or_ip.conf
+
+Cole nele a seguinte configuração mínima do VirtualHost:
+
+<VirtualHost *:443>
+   ServerName your_domain_or_ip
+   DocumentRoot /var/www/your_domain_or_ip
+
+   SSLEngine on
+   SSLCertificateFile /etc/ssl/certs/apache-selfsigned.crt
+   SSLCertificateKeyFile /etc/ssl/private/apache-selfsigned.key
+</VirtualHost>
+
+Certifique-se de atualizar a linha ServerName para o que você pretende endereçar ao seu servidor. Isso pode ser um nome de host, nome de domínio completo, ou um endereço IP. Verifique se o que você escolhe corresponde ao Common Name que você escolheu ao criar o certificado.
+
+Agora, vamos criar nosso DocumentRoot e colocar um arquivo HTML nele apenas para fins de teste:
+
+sudo mkdir /var/www/your_domain_or_ip
+
+Abra um novo arquivo index.html com seu editor de texto:
+
+sudo nano /var/www/your_domain_or_ip/index.html
+
+<h1>it worked!</h1>
+
+sudo a2ensite your_domain_or_ip.conf
+
+aptes
+
+aprel
+
+Já poderá usar em seu site
+
+https://your_domain_or_ip
+
+Em seguida, adicionaremos outra seção VirtualHost à nossa configuração para atender requisições HTTP simples e redirecioná-las ao HTTPS.
+
+Redirecionando HTTP para HTTPS
+
+Atualmente, nossa configuração irá responder apenas às requisições HTTPS na porta 443. É uma boa prática também responder na porta 80, mesmo que você queira forçar todo o tráfego a ser criptografado. Vamos configurar um VirtualHost para responder a essas requisições não criptografadas e redirecioná-las para HTTPS.
+
+Abra o mesmo arquivo de configuração do Apache que iniciamos nos passos anteriores:
+
+sudo nano /etc/apache2/sites-available/your_domain_or_ip.conf
+
+Ao final, crie outro bloco VirtualHost para corresponder às requisições na porta 80. Use a diretiva ServerName para corresponder novamente ao seu nome de domínio ou endereço IP. Em seguida, use Redirect para corresponder a quaisquer requisições e enviá-las para o VirtualHost SSL. Certifique-se de incluir a barra final:
+/etc/apache2/sites-available/your_domain_or_ip.conf
+<VirtualHost *:80>
+    ServerName your_domain_or_ip
+    Redirect / https://your_domain_or_ip/
+</VirtualHost>
+
+Salve, feche e teste
+
+aptes
+
+aprel
+
+http://your_domain_or_ip
+
+Referências
+
+https://www.digitalocean.com/community/tutorials/how-to-create-a-self-signed-ssl-certificate-for-apache-in-ubuntu-20-04-pt
+
+https://ubuntu.tutorials24x7.com/blog/install-self-signed-ssl-certificate-using-openssl-on-ubuntu-20-04-lts
+
+
+== Autenticação do Apache para proteger o administrator do Joomla
+
+https://www.digitalocean.com/community/tutorials/how-to-set-up-password-authentication-with-apache-on-ubuntu-16-04
+
+apt update
+
+htpasswd -c /etc/apache2/.htpasswd ribafs
+cat /etc/apache2/.htpasswd
+
+nano /etc/apache2/sites-enabled/000-default.conf
+
+Mudar para que fique mais ou mennos assim, ao final a autenticação
+
+<VirtualHost *:80>
+  ServerAdmin webmaster@localhost
+  DocumentRoot /var/www/html
+  ErrorLog ${APACHE_LOG_DIR}/error.log
+  CustomLog ${APACHE_LOG_DIR}/access.log combined
+
+  <Directory "/var/www/html/administrator">
+      AuthType Basic
+      AuthName "Restricted Content"
+      AuthUserFile /etc/apache2/.htpasswd
+      Require valid-user
+  </Directory>
+</VirtualHost>
+
+Checar sintaxe
+apache2ctl configtest
+
+sudo service apache2 reload
+
+Para sites com SSL
+
+nano /etc/apache2/sites-enabled/default-ssl.conf
+
+Mudar para fique mais ou mennos assim, ao final a autenticação
+
+<IfModule mod_ssl.c>
+        <VirtualHost _default_:443>
+                # AJUSTE AS DUAS LINHAS ABAIXO PARA SEUS DADOS
+                ServerAdmin ribafs@gmail.com
+                ServerName ribafs.org
+
+                DocumentRoot /var/www/html
+
+                ErrorLog ${APACHE_LOG_DIR}/error.log
+                CustomLog ${APACHE_LOG_DIR}/access.log combined
+
+                SSLEngine on
+
+                SSLCertificateFile      /etc/ssl/certs/apache-selfsigned.crt
+                SSLCertificateKeyFile /etc/ssl/private/apache-selfsigned.key
+
+                <FilesMatch "\.(cgi|shtml|phtml|php)$">
+                                SSLOptions +StdEnvVars
+                </FilesMatch>
+                <Directory /usr/lib/cgi-bin>
+                                SSLOptions +StdEnvVars
+                </Directory>
+
+                BrowserMatch "MSIE [2-6]" \
+                               nokeepalive ssl-unclean-shutdown \
+                               downgrade-1.0 force-response-1.0
+
+                <Directory "/var/www/html/administrator">
+                      AuthType Basic
+                      AuthName "Restricted Content"
+                      AuthUserFile /etc/apache2/.htpasswd
+                      Require valid-user
+                </Directory>
+        </VirtualHost>
+</IfModule>
+
+Checar sintaxe
+apache2ctl configtest
+
+systemctl restart apache2
+systemctl status apache2
+
+Testar
+https://IP/administrator
+
+
+
+# Atualizações
+
+Mantenha o sistema operacional atualizado com frequência, como também todos os pacotes instalados, assim como o Joomla e suas extensões.
+
+
+## Atualizar automaticamente somente as atualizações de segurança num Ubuntu:
+
+aptitude install unattended-upgrades
+
+nano /etc/apt/apt.conf.d/10periodic
+
+Excluir tudo e adicionar:
+```bash
+APT::Periodic::Update-Package-Lists "1";
+APT::Periodic::Download-Upgradeable-Packages "1";
+APT::Periodic::AutocleanInterval "7";
+APT::Periodic::Unattended-Upgrade "1";
+```
+Isso somente atualiza pacotes de segurança
+
+
+## Atualização completa, dos repositórios e de todos os pacotes:
+
+apt-get update
+
+apt-get upgrade
+
+Atualize o servidor manualmente pelo menos uma vez por dia.
+
+Caso instale uma nova versão do kernel, efetue um reboot para que o novo kernel seja carregado
+

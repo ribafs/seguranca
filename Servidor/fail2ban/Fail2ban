@@ -1,0 +1,138 @@
+Fail2ban
+
+O fail2ban deve ser instalado logo após a instalação do AMP/EMP
+
+O fail2ban é mais eficiente que o denyhosts, pois ele extende a monitoração de logs para outros serviços além do ssh, como o apache, courier, ftp e mais.
+
+O fail2ban escaneia arquivos de log e bane IPs que parecem suspeitos (muitas tentativas erradas de senha, procurando por exploits, etc)
+Geralmente bloqueia através do firewall por um certo tempo que é configurável
+
+Qualquer serviço exposto à Internet corre o risco de ataques de malware. Por exemplo, se você estiver executando um serviço em uma rede disponível publicamente, os invasores podem usar tentativas de força bruta para entrar em sua conta.
+
+Fail2ban é uma ferramenta que ajuda a proteger sua máquina Linux da força bruta e outros ataques automatizados, monitorando os logs de serviços em busca de atividades maliciosas. Ele usa expressões regulares para verificar os arquivos de log. Todas as entradas correspondentes aos padrões são contadas e, quando seu número atinge um determinado limite predefinido, o Fail2ban proíbe o IP ofensivo usando o firewall do sistema por um período de tempo específico. Quando o período de banimento expira, o endereço IP é removido da lista de banidos.
+
+Instalação
+
+sudo apt update; sudo apt install -y fail2ban
+
+Verificar
+
+sudo service fail2ban status
+
+Configurações
+
+O fail2ban vem com dois arquivos de configuração /etc/fail2ban/jail.conf e /etc/fail2ban/jail.d/defaults-debian.conf
+
+É recomendado não alterar estes arquivos que serão sobrescritos quando da atualização.
+
+O fail2ban ler os arquivos de configuração na seguinte ordem:
+
+    • /etc/fail2ban/jail.conf
+    • /etc/fail2ban/jail.d/*.conf
+    • /etc/fail2ban/jail.local
+    • /etc/fail2ban/jail.d/*.local
+    
+Cada arquivo .local sobrescreve as configurações dos .conf
+
+Para a maioria dos usuários, a maneira mais fácil de configurar o Fail2ban é copiar o jail.conf para jail.local e modificar o arquivo .local. 
+
+Usuários mais avançados podem criar um arquivo de configuração local do zero. O arquivo .local não precisa incluir todas as configurações do arquivo .conf correspondente, apenas aquelas que você deseja substituir.
+
+Crie um arquivo de configuração .local a partir do arquivo jail.conf padrão:
+
+sudo cp /etc/fail2ban/jail.{conf,local}
+
+Para iniciar a configuração do servidor Fail2ban, abra o arquivo jail.local com seu editor de texto:
+
+cp /etc/fail2ban/jail.local ~/backup
+
+sudo nano /etc/fail2ban/jail.local
+
+O arquivo inclui comentários que descrevem o que cada opção de configuração faz. Neste exemplo, vamos alterar as configurações básicas.
+
+Whitelist IP Addresses
+
+Os endereços IP, intervalos de IP ou hosts que você deseja excluir do banimento podem ser adicionados à diretiva ignoreip. Aqui você deve adicionar o endereço IP do seu PC local e todas as outras máquinas que deseja colocar na lista de permissões.
+
+Remova o comentário da linha que começa com ignoreip e adicione seus endereços IP de acesso separados por espaço:
+
+ignoreip = 127.0.0.1/8 ::1 123.123.123.123 204.48.30.243
+
+Configurações de banimento
+
+Os valores das opções bantime, findtime e maxretry definem o tempo de proibição e as condições de banimento.
+
+bantime é a duração pela qual o IP é banido. Quando nenhum sufixo é especificado, o padrão é segundos. Por padrão, o valor bantime é definido como 10 minutos. Geralmente, a maioria dos usuários deseja definir um tempo de banimento mais longo. Altere o valor ao seu gosto:    
+
+bantime  = 1d
+
+Para banir permanentemente o IP, use um número negativo.
+
+findtime é a duração entre o número de falhas antes de um ban ser definido. Por exemplo, se Fail2ban for configurado para banir um IP após cinco falhas (maxretry, veja abaixo), essas falhas devem ocorrer dentro do tempo de duração do findtime.
+
+findtime  = 10m
+
+maxretry é o número de falhas antes de um IP ser banido. O valor padrão é definido como cinco, o que deve ser adequado para a maioria dos usuários.
+
+maxretry = 3
+
+Notificações por Email
+
+Fail2ban pode enviar alertas por email quando um IP é banido. Para receber e-mails, você precisa ter um SMTP instalado em seu servidor e alterar a ação padrão, que apenas bane o IP para% (action_mw) s, conforme mostrado abaixo:
+
+action = %(action_mw)s
+
+% (action_mw) s bane o IP ofensivo e envia um e-mail com um relatório whois. Se você deseja incluir os logs relevantes no e-mail, defina a ação para% (action_mwl) s.
+
+Você também pode ajustar os endereços de e-mail de envio e recebimento:
+
+destemail = root@localhost
+
+sender = root@linuxize.com
+
+
+Fail2ban Jails/Jaula
+
+Fail2ban usa um conceito de jaulas. Uma jaula descreve um serviço e inclui filtros e ações. As entradas de log que correspondem ao padrão de pesquisa são contadas e, quando uma condição predefinida é atendida, as ações correspondentes são executadas.
+O Fail2ban vem com várias jaulas para serviços diferentes. Você também pode criar suas próprias configurações de jaula.
+Por padrão, apenas a jaula ssh está habilitada. Para habilitar uma jaula, você precisa adicionar enabled = true após o título da mesma.
+
+[sshd]
+enabled   = true
+maxretry  = 3
+findtime  = 1d
+bantime   = 4w
+ignoreip  = 127.0.0.1/8 204.48.30.243
+port = 44422
+
+Os filtros estão localizados no diretório /etc/fail2ban/filter.d, armazenados em um arquivo com o mesmo nome da jaula. Se você tiver uma configuração personalizada e experiência com expressões regulares, poderá ajustar os filtros.
+
+Cada vez que você edita um arquivo de configuração, é necessário reiniciar o serviço Fail2ban para que as alterações tenham efeito:
+
+sudo systemctl restart fail2ban
+
+Fail2ban Cliente
+
+O Fail2ban é fornecido com uma ferramenta de linha de comando chamada fail2ban-client que você pode usar para interagir com o serviço Fail2ban.
+
+Para visualizar todas as opções disponíveis, invoque o comando com a opção -h:
+
+fail2ban-client -h
+
+Essa ferramenta pode ser usada para banir ou cancelar o banimento de endereços IP, alterar configurações, reiniciar o serviço e muito mais. Aqui estão alguns exemplos:
+
+    • Checar o status de uma jail/jaula:
+      sudo fail2ban-client status sshd
+      
+    • Cancelar banimento de um IP:
+      sudo fail2ban-client set sshd unbanip 23.34.45.56
+      
+    • Banir um IP:
+      sudo fail2ban-client set sshd banip 23.34.45.56
+      
+Documentação oficial
+https://www.fail2ban.org/wiki/index.php/Main_Page
+
+Referências
+https://linuxize.com/post/install-configure-fail2ban-on-ubuntu-20-04/
+https://linuxhint.com/install_fail2ban_on_ubuntu_20-04/    

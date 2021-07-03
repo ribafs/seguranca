@@ -1,0 +1,24 @@
+== Backup de arquivos incremental usando o rsync, que sincroniza local com remoto
+
+Puxando do servidor para desktop
+
+/ - a barra ao final do /home/ribafs/backup/ indica que não desejamos copiar o diretório, mas somente seu conteúdo
+-a - archive (arquivar arquivos e diretórios enquanto sincroniza)
+-r - recursive
+-z - comrpess
+-v - verbose
+-q - quiet
+-n - executa teste de execução sem sincronizar
+-h - mostra os números no formato que o humano entende
+-progress - mostra o progresso durante a transferência
+-e - mencione o shell remoto para usar em rsync
+
+rsync -arvzh -e 'ssh -p 44422' ribafs@204.48.30.243:/home/ribafs/backup/ /home/ribafs/backupdesk
+
+Enviando arquivo do desktop para o servidor
+
+rsync -e 'ssh -p 44422' file.zip ribafs@204.48.30.243:/home/ribafs/backup/
+
+https://www.linuxtechi.com/rsync-command-examples-linux/
+
+

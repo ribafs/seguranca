@@ -1,0 +1,386 @@
+Mantendo Extensões Seguras
+
+Tornando o nome de um arquivo seguro
+
+jimport('joomla.filesystem.file');
+$safeFilename = JFile::makeSafe($unsafeFilename);
+
+
+Tornando seguro um diretório
+
+jimport('joomla.filesystem.folder');
+$safeDirPath = JFolder::makeSafe($unsafeDirPath);
+
+Tornando seguro um path
+$myPath = JRequest::getVar('myPath', 'default', 'REQUEST', 'PATH');
+jimport('joomla.filesystem.path');
+$myPath = JPath::clean($myPath);
+JPath::check($myPath);
+
+
+Servidores de Hospedagem
+
+Caso queira uma maior segurança para o site não use servidores compartilhados mas ao contrário use servidores dedicados,
+onde terá maior controle.
+
+
+Configurando o PHP (php.ini)
+
+register_globals = off
+magic_quotes_gpc = on
+allow_url_fopen = off
+expose_php = off
+safe_mode = off
+ServerSignature = Off
+
+/**
+* Use 1 to emulate register_globals = on
+*
+* Use 0 to emulate regsiter_globals = off [sic]
+*/
+define( 'RG_EMULATION', 1 );
+/**
+* Adds an array to the GLOBALS array and checks that the GLOBALS variable is
+* not being attacked
+* @param array
+* @param boolean True if the array is to be added to the GLOBALS
+*/
+
+
+.htaccess
+
+Recurso importante para segurança
+
+########## Begin - Rewrite rules to block out some common exploits
+## If you experience problems on your site block out the operations listed below
+## This attempts to block the most common type of exploit `attempts` to Joomla!
+#
+#IF the URI contains a "http:" or "ftp:" or "https"
+RewriteCond %{QUERY_STRING} http\: [OR]
+RewriteCond %{QUERY_STRING} ftp\: [OR]
+RewriteCond %{QUERY_STRING} https\: [OR]
+#OR if the URI contains a "["
+RewriteCond %{QUERY_STRING} \[ [OR]
+#OR if the URI contains a "]"
+RewriteCond %{QUERY_STRING} \] [OR]
+# Block out any script trying to set a mosConfig value through the URL
+RewriteCond %{QUERY_STRING} mosConfig_[a-zA-Z_]{1,21}(=|\%3D) [OR]
+# Block out any script trying to base64_encode crap to send via URL
+RewriteCond %{QUERY_STRING} base64_encode.*\(.*\) [OR]
+# Block out any script that includes a <script> tag in URL
+RewriteCond %{QUERY_STRING} (\<|%3C).*script.*(\>|%3E) [NC,OR]
+# Block out any script trying to set a PHP GLOBALS variable via URL
+RewriteCond %{QUERY_STRING} GLOBALS(=|\[|\%[0-9A-Z]{0,2}) [OR]
+# Block out any script trying to modify a _REQUEST variable via URL
+RewriteCond %{QUERY_STRING} _REQUEST(=|\[|\%[0-9A-Z]{0,2})
+# Send all blocked request to homepage with 403 Forbidden error!
+RewriteRule ^(.*)$ index.php [F,L]
+#
+########## End - Rewrite rules to block out some common exploits
+
+
+Permissões de arquivos:
+
+.htaccess............644
+configuration.php... 644
+Diretórios ..........755
+Arquivos............ 644
+
+
+Organize-se em relação ao backup
+
+Uma ótima alternativa é o uso do JoomlaBack
+
+
+Proteja seu computador local:
+
+- Use um bom antivirus
+- Antispy
+- Firewall
+- Proteja suas senhas
+- Evite spam
+- Atente para uma boa manutenção do hardware e evite tomar café próximo ao teclado ou outros líquidos e sujantes
+- Use uma senha forte para sua internet Wireless
+
+
+
+Referência:
+Livro Joomla! Web Security do Tom Canavan - Editora Packt Publishing 
+
+
+Cuidado com a instalação de Extensões de Terceiros
+
+Sempre verifique a lista de suspeitos e perigosos:
+http://docs.joomla.org/Vulnerable_Extensions_List
+
+
+Ao concluir o site faça testes para ver como está a segurança.
+
+
+Fique de olho nas atualizações e as execute sempre que aparecerem.
+Uma boa idéia é assinar o RSS do Joomla ou cadastrar seu e-mail na página de downloads (http://www.joomla.org/download.html) para maior agilidade.
+
+
+Use senhas fortes para a seção de administração do Joomla.
+Use um sistema operacional estável como o Linux e esteja sempre atualizado.
+Tome cuidado redobrado com entradas de usuários em formulários ou outras.
+
+
+Injeção SQL
+
+For getting user IDs:
+User and Password from mysql.user:
+
+http://[host]/activate.php?userName='/**/union/**/select/**/1,2,3,4,concat(user,0x203a3a20,password),6,7,8,9,9,9,9,9/**/from/**/mysql.user/*
+
+O exploit acima tira vantagem da seguinte vulnerabilidade:
+
+$userName = $_GET["userName"];
+$code = $_GET["activate"];
+$sql = "SELECT activated FROM users WHERE username = '$userName' AND activated = '$code'";
+
+Ver: http://developer.joomla.org/tutorials/181-preventing-sql-injections.html
+
+
+Caso magic_quotes esteja como OFF este exploit derrubará seu sistema .
+
+Cuidado com as configurações do PHP e com a elaboração das consultas SQL.
+
+
+Oculte as mensagens de erros para evitar que informações caiam nas mãos dos curiosos:
+
+# suppress php errors
+php_flag display_startup_errors off
+php_flag display_errors off
+php_flag html_errors off
+php_value docref_root 0
+php_value docref_ext 0
+
+
+Cuidado com includes, veja acima.
+
+
+Prevenindo visualização de conteúdo de diretórios
+
+# Disable directory browsing
+Options All –Indexes
+
+Ocultando algumas extensões
+# prevent display of select file types
+IndexIgnore *.wmv *.mp4 *.avi *.etc
+
+
+Sites com ferramentas para mostrar vulnerabilidades, exploits e notícias sobre segurança:
+
+www.secunia.org
+www.us-cert.gov
+www.milw0rm.com
+www.nist.gov
+www.sans.org
+frsirt.com
+www.joomla.org
+www.redhat.org/apps/support
+www.freebsd.org/security
+www.microsoft.com/technet/security/notify.asp
+www.openbsd.org/security
+www.debian.org/security
+http://sunsolve.sun.com/pub-cgi/secBulletin.pl
+http://osvdb.org/
+
+
+Elabora uma lista de itens sobre segurança que deverá averiguar com frequência.
+
+
+Ports used by Backdoor Tools
+(Source: garykessler.net/library/bad_ports.html)
+31/tcp
+Agent 31, Hackers Paradise, Masters Paradise
+1170/tcp
+Psyber Stream
+1234/tcp
+Ultors Trojan
+1243/tcp
+SubSeven server
+1981/tcp
+ShockRave
+2001/tcp
+Trojan Cow
+2023/tcp
+Ripper Pro
+2140/udp
+Deep Throat, Invasor
+2989/tcp
+Rat backdoor
+3024/tcp
+WinCrash
+3150/tcp
+Deep Throat, Invasor
+3700/tcp
+Portal of Doom
+4950/tcp
+ICQ Trojan
+6346/tcp
+Gnutella
+6400/tcp
+The Thing
+6667/tcp
+Trinity intruder-to-master and master-to-daemon and SubSeven server (default for V2.1 Icqfix and beyond)
+6670/tcp
+Deep Throat
+12345/tcp
+NetBus 1.x, GabanBus, Pie Bill Gates, X-Bill
+12346/tcp
+NetBus 1.x
+16660/tcp
+Stacheldraht intruder-to-master
+18753/udp
+Shaft master-to-daemon
+20034/tcp
+NetBus 2 Pro
+20432/tcp
+Shaft intruder-to-master
+20433/udp
+Shaft daemon-to-master
+27374/tcp
+SubSeven server (default for V2.1-Defcon)
+27444/udp
+Trinoo master-to-daemon
+27665/tcp
+Trinoo intruder-to-master
+30100/tcp
+NetSphere
+31335/udp
+Trinoo daemon-to-master
+31337/tcp
+Back Orifice, Baron Night, Bo Facil
+33270/tcp
+Trinity master-to-daemon
+33567/tcp
+Backdoor rootshell via inetd (from Lion worm)
+33568/tcp
+Trojaned version of SSH (from Lion worm)
+40421/tcp
+Masters Paradise Trojan horse
+60008/tcp
+Backdoor rootshell via inetd (from Lion worm)
+65000/tcp
+Stacheldraht master-to-daemon
+
+
+Códigos de Status do Apache
+
+1xx Info / Informational
+100 Continue
+HTTP_CONTINUE
+101 Switching Protocols
+HTTP_SWITCHING_PROTOCOLS
+102 Processing
+HTTP_PROCESSING
+
+2xx Success / OK
+200 OK
+HTTP_OK
+201 Created
+HTTP_CREATED
+202 Accepted
+HTTP_ACCEPTED
+203 Non-Authoritative Information
+HTTP_NON_AUTHORITATIVE
+204 No Content
+HTTP_NO_CONTENT
+205 Reset Content
+HTTP_RESET_CONTENT
+206 Partial Content
+HTTP_PARTIAL_CONTENT
+207 Multi-Status
+HTTP_MULTI_STATUS
+
+3xx Redirect
+300 Multiple Choices
+HTTP_MULTIPLE_CHOICES
+301 Moved Permanently
+HTTP_MOVED_PERMANENTLY
+302 Found
+HTTP_MOVED_TEMPORARILY
+303 See Other
+HTTP_SEE_OTHER
+304 Not Modified
+HTTP_NOT_MODIFIED
+305 Use Proxy
+HTTP_USE_PROXY
+307 Temporary Redirect
+HTTP_TEMPORARY_REDIRECT
+
+4xx Client Error
+400 Bad Request
+HTTP_BAD_REQUEST
+401 Authorization Required
+HTTP_UNAUTHORIZED
+402 Payment Required
+HTTP_PAYMENT_REQUIRED
+403 Forbidden
+HTTP_FORBIDDEN
+404 Not Found
+HTTP_NOT_FOUND
+405 Method Not Allowed
+HTTP_METHOD_NOT_ALLOWED
+406 Not Acceptable
+HTTP_NOT_ACCEPTABLE
+407 Proxy Authentication Required
+HTTP_PROXY_AUTHENTICATION_REQUIRED
+408 Request Time-out
+HTTP_REQUEST_TIME_OUT
+409 Conflict
+HTTP_CONFLICT
+410 Gone
+HTTP_GONE
+411 Length Required
+HTTP_LENGTH_REQUIRED
+412 Precondition Failed
+HTTP_PRECONDITION_FAILED
+413 Request Entity Too Large
+HTTP_REQUEST_ENTITY_TOO_LARGE
+414 Request-URI Too Large
+HTTP_REQUEST_URI_TOO_LARGE
+415 Unsupported Media Type
+HTTP_UNSUPPORTED_MEDIA_TYPE
+416 Requested Range Not Satisfiable
+HTTP_RANGE_NOT_SATISFIABLE
+417 Expectation Failed
+HTTP_EXPECTATION_FAILED
+422 Unprocessable Entity
+HTTP_UNPROCESSABLE_ENTITY
+423 Locked
+HTTP_LOCKED
+424 Failed Dependency
+HTTP_FAILED_DEPENDENCY
+425 No code
+HTTP_NO_CODE
+426 Upgrade Required
+HTTP_UPGRADE_REQUIRED
+
+5xx Server Error
+500 Internal Server Error
+HTTP_INTERNAL_SERVER_ERROR
+501 Method Not Implemented
+HTTP_NOT_IMPLEMENTED
+502 Bad Gateway
+HTTP_BAD_GATEWAY
+503 Service Temporarily Unavailable
+HTTP_SERVICE_UNAVAILABLE
+504 Gateway Time-out
+HTTP_GATEWAY_TIME_OUT
+505 HTTP Version Not Supported
+HTTP_VERSION_NOT_SUPPORTED
+506 Variant Also Negotiates
+HTTP_VARIANT_ALSO_NEGOTIATES
+507 Insufficient Storage
+HTTP_INSUFFICIENT_STORAGE
+510 Not Extended
+HTTP_NOT_EXTENDED
+
+
+Boa relação de portas
+http://www.iana.org/assignments/port-numbers
+
+

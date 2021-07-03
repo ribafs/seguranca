@@ -1,0 +1,18 @@
+== Backup de arquivos usando o scp
+
+Copiar arquivo do desktop para o servidor
+
+scp -P porta arquivo.txt user@IP:/remote/directory
+
+Copiar uma pasta recursivamente, apenas adicione -r do desktop para o servidor
+
+scp -P porta -r /local/directory user@IP:/remote/directory
+
+
+Copiar uma pasta recursivamente, do servidor para o desktop
+
+scp -P porta -r user@IP:/remote/directory /local/directory
+
+scp -P 44422 -r ribafs@204.48.30.243:/home/ribafs/backup/ /home/ribafs/backup-server
+
+

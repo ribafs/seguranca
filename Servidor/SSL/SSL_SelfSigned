@@ -1,0 +1,25 @@
+Instalar o Certificado SSL Auto assinado
+
+openssl version
+
+sudo openssl req -x509 -nodes -days 365 -newkey rsa:2048 -keyout /etc/ssl/private/my.key -out /etc/ssl/certs/my.crt
+
+Chave privada
+/etc/ssl/private/my.key
+
+CRT
+/etc/ssl/certs/my.crt
+
+sudo ufw allow 443
+
+ou
+
+sudo ufw allow https
+
+sudo a2ensite default-ssl.conf
+
+sudo systemctl restart apache2
+
+https://hostadvice.com/how-to/how-to-install-a-self-signed-ssl-certificate-for-apache-on-ubuntu-18-04-server/
+
+

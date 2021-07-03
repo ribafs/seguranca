@@ -1,0 +1,17 @@
+SELinux Boolean
+
+Um booleano SELinux é uma variável que pode ser ativada e desativada sem a necessidade de recarregar ou recompilar uma política SELinux.
+
+     1. Você pode visualizar a lista de variáveis booleanas usando o comando getsebool -a. Passe o comando por meio de grep para restringir seus resultados.
+     
+sudo getsebool -a | grep "httpd_can"
+
+Você pode alterar o valor de qualquer variável usando o comando setsebool. Se você definir o sinalizador -P, a configuração persistirá durante as reinicializações. Se, por exemplo, você deseja permitir que scripts e módulos HTTPD se conectem à rede, atualize a variável booleana correspondente
+
+sudo setsebool -P httpd_can_network_connect ON
+
+Ao visualizar uma lista de suas variáveis booleanas, você deve ver agora que está definido como ON.
+
+sudo getsebool -a | grep "httpd_can"
+
+

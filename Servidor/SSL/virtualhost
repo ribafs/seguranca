@@ -1,0 +1,90 @@
+VirtualHost
+
+- Escutando na porta 80
+- Escutando na porta 443
+- Subdomínio
+
+Vou criar o virtualhost:
+
+/var/www/demo - 127.0.0.1 - demo
+
+sudo nano /etc/hosts
+
+127.0.0.1	demo
+
+Porta 80
+
+sudo nano /etc/apache2/sites-available/demo.conf
+
+<VirtualHost *:80>
+ServerAdmin ribafs@gmail.com
+ServerName demo
+DirectoryIndex index.php
+DocumentRoot /var/www/demo
+LogLevel warn
+ErrorLog ${APACHE_LOG_DIR}/error.log
+CustomLog ${APACHE_LOG_DIR}/access.log combined
+<Directory /var/www/demo/>
+    Options Indexes FollowSymLinks
+    AllowOverride All
+    Require all granted
+    DirectoryIndex index.html index.php
+</Directory>
+</VirtualHost>
+
+sudo a2ensite demo
+sudo systemctl reload apache2
+
+
+Porta 443
+
+sudo cp /etc/apache2/sites-available/default-ssl.conf /etc/apache2/sites-available/demo-ssl.conf
+
+sudo nano /etc/apache2/sites-available/demo.conf
+
+Removendo os comentários ficou assim:
+
+<IfModule mod_ssl.c>
+        <VirtualHost _default_:443>
+                ServerAdmin ribafs@gmail.com
+
+                DocumentRoot /var/www/demo
+
+                ErrorLog ${APACHE_LOG_DIR}/error.log
+                CustomLog ${APACHE_LOG_DIR}/access.log combined
+
+                SSLEngine on
+
+                SSLCertificateFile      /etc/ssl/certs/ssl-cert-snakeoil.pem
+                SSLCertificateKeyFile /etc/ssl/private/ssl-cert-snakeoil.key
+
+                <FilesMatch "\.(cgi|shtml|phtml|php)$">
+                                SSLOptions +StdEnvVars
+                </FilesMatch>
+                <Directory /usr/lib/cgi-bin>
+                                SSLOptions +StdEnvVars
+                </Directory>
+
+        </VirtualHost>
+</IfModule>
+
+sudo a2ensite demo-ssl
+sudo systemctl reload apache2
+
+
+Adicionar subdomínio demo ao DNS
+
+Adicione registro CNAME ao DNS
+
+Type	Hostname			Value			TTL
+
+CNAME	demo		        ribafs.me.		43200
+
+
+O site deve ficar na pasta /var/www/demo
+
+
+Executar
+
+sudo certbot renew --dry-run
+

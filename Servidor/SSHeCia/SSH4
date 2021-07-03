@@ -1,0 +1,12 @@
+Adicione o seguinte ao final de sshd_config:
+
+#Match Group sshonly
+ChrootDirectory% h
+ForceCommand internal-sftp
+X11Forwarding no
+AllowTcpForwarding no
+
+Reinicie o SSHD
+systemctl restart sshd
+
+

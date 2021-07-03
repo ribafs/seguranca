@@ -1,0 +1,38 @@
+sudo apt install ufw
+
+Após instalar o LAMP, instalar o 
+
+Permitir somente de certo IP
+
+sudo ufw allow from 203.0.113.4
+
+sudo ufw allow from 203.0.113.4 to any port 65522
+
+sudo ufw allow from 203.0.113.0/24
+
+sudo ufw allow from 203.0.113.0/24 to any port 22
+
+ip addr
+
+sudo ufw allow in on eth0 to any port 80
+
+sudo ufw deny http
+
+sudo ufw deny from 203.0.113.4
+
+sudo ufw status numbered
+
+sudo ufw delete 2
+
+sudo ufw delete allow http
+
+sudo ufw delete allow 80
+
+sudo ufw disable
+
+Resetar para as rules default
+
+sudo ufw reset
+
+https://www.digitalocean.com/community/tutorials/how-to-set-up-a-firewall-with-ufw-on-debian-10
+

@@ -1,0 +1,66 @@
+Monitorando o servidor
+
+Monitorando o servidor com recursos do painel administrativo do DigitalOcean
+
+O Digital Ocean tem em seu painel administrativo, uns gráficos de uso dos recursos:
+- Consumo de banda, Uso da CPU e leitura e escrita de disco (I/O)
+- Acessar o painel efetuando login
+- Selecionar a droplet desejada
+Aparecerá o gráfico ao centro.
+
+Bandwidth - clique abaixo em private inbound para ver o seu uso e em public inbound para ver o uso externo
+CPU Usage - clique em sys para ver o consumo pelo sistema e em user para ver o consumo do usuário
+Disk I/O - clique em read para ver o uso de leitura e em write para ver o de escrita.
+(Existem outros recursos caso se faça upgrade da droplet)
+
+Acima e à direita exite uma combo que mostra por default Last 1 hour (Gráfico da última hora). Podemos mudar para quue mostre mais horas e até dias. Colado à direita tem outra combo com 5m, que é o tempo de refresh do gráfico, que podemos alterar.
+
+Se passarmos o ponteiro do mouse sobre o gráfico podemos ver detalhes pontuais.
+
+https://www.digitalocean.com/docs/droplets/how-to/graphs/
+
+Configurando monitores de alerta da droplet
+
+https://www.digitalocean.com/docs/monitoring/how-to/set-up-alerts/
+
+O Monitoramento DigitalOcean é um serviço opcional gratuito que reúne métricas sobre a utilização de recursos no nível do Droplet. Ele fornece gráficos Droplet adicionais e oferece suporte a políticas de alerta de métricas configuráveis com notificações Slack por e-mail integradas para ajudá-lo a rastrear a integridade operacional de sua infraestrutura.
+
+Este é um recurso que emite um alerta quando algum recurso atinge certo consumo. Para criar um Alert:
+
+- Selecione a droplet
+- à esquerda clique em Manage - Monitoring - Create Aelrt Policy
+- Clique em CPU para escolher o tipo de Alert (CPU, Banda entrada, saída, Disco leitura, escrita, Memória, Utilização de disco).
+	CPU
+	is above/acima
+	70%
+	5 min
+	
+	Role a tela e entre com o nome da droplet ou uma tag
+	Send alerts via e-mail
+	Name - CPU com consumo elevado
+	Create alert policy
+	
+	Significa: Quando o uso da CPU estiver acima de 70% por 5 minutos me avise.
+
+
+
+Monitorar os recursos
+
+Espaço em disco
+
+df -h
+
+Memória RAM e Swap
+
+free -m
+
+
+Sites com serviço online de monitoramento, com plano free
+
+- https://www.statuscake.com/
+
+Uptime Monitoring 	Server Monitoring
+Domain Monitoring 	Page Speed Monitoring
+SSL Monitoring 	Virus Scanning
+
+

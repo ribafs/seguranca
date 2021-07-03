@@ -1,0 +1,9 @@
+# cat /etc/services
+grep -w '80/tcp' /etc/services
+grep -w '443/tcp' /etc/services
+grep -w '65522/tcp' /etc/services
+
+grep -w '80/tcp' /etc/services
+grep -w '443/tcp' /etc/services
+grep -w '22/tcp' /etc/services
+

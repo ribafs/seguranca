@@ -1,0 +1,50 @@
+sudo dnf update
+sudo dnf -y install firewalld
+sudo systemctl enable --now firewalld
+
+Liberar a porta do SSH
+
+semanage port -l | grep ssh
+
+sudo semanage port -a -t ssh_port_t -p tcp 55522
+
+semanage port -l | grep ssh
+
+Liberar no FirewallD
+
+sudo firewall-cmd --add-port=55522/tcp --permanent
+sudo firewall-cmd --reload
+
+sudo nano /etc/firewalld/firewalld.conf
+
+Mudar a última linha
+
+#AllowZoneDrifting=yes
+AllowZoneDrifting=no
+
+Podemos ver qual zona está atualmente selecionada como padrão, digitando:
+
+    firewall-cmd --get-default-zone
+
+firewall-cmd --get-active-zones
+
+sudo firewall-cmd --list-all
+
+sudo firewall-cmd --list-all-zones | less
+
+sudo firewall-cmd --zone=public --list-services --permanent
+
+sudo firewall-cmd --zone=public --add-service=https --permanent
+
+sudo firewall-cmd --reload
+
+sudo firewall-cmd --zone=publicweb --add-service=ssh
+sudo firewall-cmd --zone=publicweb --add-service=https
+
+sudo firewall-cmd --reload
+
+sudo firewall-cmd --zone=publicweb --list-services
+
+sudo firewall-cmd --set-default-zone=publicweb
+
+https://www.digitalocean.com/community/tutorials/how-to-set-up-a-firewall-using-firewalld-on-centos-8-pt

@@ -1,0 +1,213 @@
+Cowrie Honeypot
+
+Honeypot
+
+Na terminologia de computador, um honeypot é um mecanismo de segurança de computador configurado para detectar, desviar ou, de alguma maneira, neutralizar tentativas de uso não autorizado de sistemas de informação. Geralmente, um honeypot consiste em dados (por exemplo, em um site da rede) que parecem ser uma parte legítima do site que parece conter informações ou um recurso de valor para os invasores, mas na verdade são isolados e monitorados e permitem o bloqueio ou analisando os invasores. Isso é semelhante a operações policiais, comumente conhecidas como "isca" de um suspeito
+
+Honeypot - pote de mel, que é oferecido como isca para pegar ursos.
+
+Porém, falando sério, um Honeypot é um sistema intencionalmente falso ou vulnerável, projetado como uma armadilha para invasores em potencial. É uma ótima maneira de observar os invasores em ação e também de desperdiçar seu tempo; e pode significar que eles gastem menos tempo atacando alvos reais.
+Acontece que administrar um Honeypot não é apenas educacional, mas é muito divertido. Isso só pode mudar sua perspectiva sobre a quantidade de tráfego de rede malicioso que existe e quando você vir pela primeira vez o que um Honeypot pode descobrir na Internet, talvez nunca mais olhe para a segurança de rede da mesma forma! 
+
+O Cowrie é usado principalmente para registrar as sessões de um invasor, então com o cowrie temos uma melhor compreensão dos detalhes do invasor, como as ferramentas, métodos e procedimentos dele. Cowrie é uma simulação do seu servidor que significa que o invasor vai pensar que rackeou/atacou o seu servidor. Portanto, quando um invasor insere os dados corretos (nome de usuário ou senha) para fazer login em seu sistema, o sistema os deixa entrar sem nenhum erro e ele se conecta em um sistema falso. O honeypot mantém os registros e rastros do invasor, como seus comandos ou todas as senhas digitadas e salva tudo o que o invasor baixou. Esta é uma maneira genial de capturar um invasor.
+
+O daemon SSH do host será executado em uma porta alta que é 22222, Cowrie em 2222 e a porta 22 será redirecionada para 2222 usando ufw. Em seguida, o bot ou invasor SSH se conectará à porta 22, que é redirecionada ao nosso honeypot na porta 2222.
+
+Redirecionar tudo que chega na porta 22 para a porta 2222.
+
+Porta default do SSH - 22222
+
+O Honeypot fará com que a porta 2222 funcione como a real. 
+
+sudo ufw allow 22
+sudo ufw allow 2222
+sudo ufw allow 22222
+
+
+Instalar dependências
+
+sudo apt-get install git python-virtualenv libssl-dev build-essential libpython-dev python2.7-minimal authbind
+
+Adicionar o user cowrie
+
+sudo adduser --disabled-password cowrie
+
+Pode deixar o nome completo em branco
+
+Logar como cowrie
+
+su - cowrie
+
+Para verificar o id, apenas digite
+
+id
+
+Download
+
+git clone http://github.com/micheloosterhof/cowrie
+
+Criar um ambiente virtual para Python e Cowrie para executar e ativar
+
+cd cowrie/
+virtualenv cowrie-env
+source cowrie-env/bin/activate
+
+Instalar os pacotes do Python necessários para executar o cowrie
+
+pip install --upgrade pip
+pip install --upgrade -r requirements.txt
+
+Configurar o daemon do Cowrie
+
+cd etc/               
+cp cowrie.cfg.dist cowrie.cfg
+
+Criar o arquivo de configuração
+
+nano cowrie.cfg
+
+Depois disso, vamos editar este arquivo mudando o nome do host primeiro, pois isso fará o invasor pensar que ele está em nosso servidor sem que saibamos
+
+Mude o nome do hostname de svr04 para servertest1.
+
+hostname = servertest1
+
+Habilitar telnet
+
+enabled = telnet
+
+Iniciar o daemon
+
+bin/cowrie start
+
+Pelo netstat podemos ver o SSH e o Telnet no honeypot escutando nas portas 2222 e 2223
+
+Agora precisamos redirecionar o tráfico da porta 2222 para a 22 e 2223 para a 23
+
+Redirecionando portas com o ufw
+
+sudo nano /etc/ufw/before.rules
+
+*nat
+:PREROUTING ACCEPT [0:0]
+-A PREROUTING -p tcp --dport 22 -j REDIRECT --to-port 2222
+-A PREROUTING -p tcp --dport 23 -j REDIRECT --to-port 2223
+COMMIT
+
+sudo ufw enable
+sudo service ufw restart
+
+Para scannear as portas e saber o queu está acontecendo no honeypot
+
+tail -f log/cowrie.log
+
+Para observar os registros do honeypot execute
+
+cat cowrie.log
+
+Referências
+
+https://medium.com/@jeremiedaniel48/install-and-setup-cowrie-honeypot-on-ubuntu-linux-5d64552c31dc
+https://michael.mckinnon.id.au/honeypot/
+https://www.linuxbabe.com/security/modsecurity-apache-debian-ubuntu
+https://www.digitalocean.com/community/tutorials/how-to-set-up-an-artillery-honeypot-on-an-ubuntu-vps
+
+
+
+Artillery Honeypot
+
+A Artillery é uma ferramenta de defesa multifuncional para sistemas baseados em Linux, incluindo recursos de honeypot, proteção de sistema operacional, monitoramento de sistema de arquivos e análise de ameaças em tempo real. Sozinho, ele fornece uma boa quantidade de segurança para o seu sistema, mas deve ser usado como parte de um esquema de segurança em várias camadas e funciona bem com firewalls de aplicativos da web como o ModSecurity.
+
+Alguns dos recursos mais úteis do Artillery são o honeypot, o monitoramento do sistema de arquivos e os aspectos de análise de ameaças em tempo real, portanto, este artigo se concentrará principalmente neles. O honeypot é projetado para responder a scanners de portas e vulnerabilidades com algumas das portas mais comumente atacadas, como SSH, MSSQL, RPC/SMB, etc. Isso realmente faz seu servidor Linux parecer um servidor baseado em Windows para um possível invasor.
+
+O monitoramento do sistema de arquivos funciona monitorando ativamente os diretórios normalmente direcionados para mudanças (/tmp, /var /www) e monitorando arquivos que são de grande importância para os invasores (/etc /passwd, /etc/shadow /, ~/.ssh/authorized_keys ) A Artillery é configurada para monitorar esses arquivos e diretórios mais comuns por padrão, mas permite que o usuário inclua facilmente quaisquer arquivos ou diretórios que você sinta que precisam ser monitorados.
+
+Um dos recursos mais interessantes que diferenciam a Artillery de muitas outras ferramentas defensivas é o "Feed de Inteligência de Ameaça de Artilharia", que agrega endereços IP e informações sobre atacantes conhecidos em um feed central, que pode ser usado por qualquer máquina que execute a Artillery para detectar e banir invasores conhecidos de seu servidor em tempo real.
+
+Instalação
+
+git clone https://github.com/trustedsec/artillery/ artillery/
+cd /artillery
+./setup.py
+
+Você receberá três prompts durante a instalação que exigem respostas y/n. Vá em frente e responda sim para cada uma. Observe que você pode encontrar um erro no final da instalação dizendo que /var/artillery/database/temp.database não existe. Se você encontrar esse erro, os comandos a seguir resolverão o problema:
+
+mkdir /var/artillery/database
+touch /var/artillery/database/temp.database
+service artillery restart
+
+Configurações
+
+nano /var/artillery/config
+
+Alterar a linha a seguir permite o monitoramento do sistema de arquivos para diretórios personalizados:
+
+MONITOR_FOLDERS="/var/www","/etc" 
+
+Simplesmente adicione quaisquer diretórios que você deseja monitorar seguindo "/etc". Por exemplo, se você gostaria de monitorar /root, você adicionaria, "/root". O resultado final ficaria assim.
+
+MONITOR_FOLDERS="/var/www","/etc","/root"
+
+A entrada EXCLUDE permite que você especifique pastas ou arquivos que NÃO DEVEM ser monitorados. Se você não deseja que /etc/passwd seja monitorado, por exemplo, você deve alterar a entrada da seguinte forma:
+
+EXCLUDE=/etc/passwd
+
+Você também pode colocar endereços IP na lista de permissões conforme necessário. Isso é útil se você faz parte de uma equipe que acessa o servidor virtual e não deseja que ninguém seja banido por não inserir uma senha SSH correta 4 vezes. Recomenda-se colocar na lista de permissões pelo menos seu próprio endereço IP se você planeja executar portas automatizadas ou scanners de vulnerabilidade em seu droplet/servidor, pois isso causará um banimento e você não poderá mais se conectar. Por padrão, os endereços de loopback são colocados na lista de permissões; para adicionar IPs adicionais, basta inserir uma vírgula e o IP como:
+
+WHITELIST_IP=127.0.0.1,localhost,xxx.xxx.xxx.xxx
+
+Além disso, você pode especificar portas que o honeypot deve relatar como abertas. Como mencionado anteriormente, o honeypot é configurado por padrão para gerar o honeypot nas portas mais comumente atacadas, mas se você achar necessário, pode adicionar portas adicionais adicionando entradas separadas por vírgula. Para adicionar as portas 1024 e 139, você mudaria a seguinte linha:
+
+PORTS="135,445,22,1433,3389,8080,21,5900,25,53,110,1723,1337,10000,5800,44443"
+
+Para
+PORTS="135,445,22,1433,3389,8080,21,5900,25,53,110,1723,1337,10000,5800,44443,1024"
+
+É recomendado habilitar as atualizações automáticas alterando o valor de auto_update para on.
+
+AUTO_UPDATE=ON
+
+Por padrão, a Artillery é configurada para tentar mitigar ataques DoS (Denial of Service) contra as portas 80 (http) e 443 (https). Se seu droplet executa serviços da web em outras portas (8080,8180,10000), você também pode habilitar a proteção DoS nessas portas adicionando as portas, separadas por vírgula.
+
+ANTI_DOS_PORTS=80,443,8080,8180,10000
+
+Se você deseja desabilitar a proteção DoS, simplesmente altere o valor de ANTI_DOS para off.
+
+ANTI_DOS=ON
+
+Manutenção
+
+A artilharia é projetada para funcionar como um serviço após a instalação. Durante a instalação, o Artillery inicia automaticamente, portanto, não há necessidade de reiniciar o servidor.
+
+A artilharia iniciará sozinha a cada reinicialização de sua droplet, fornecendo proteção constante em segundo plano.
+Assim como o Apache, a Artillery pode ser iniciada e reiniciada como um serviço executando os seguintes comandos:
+
+service artillery start   # <-Starts the service.
+service artillery restart # <-Restarts the service.
+
+Você também pode verificar o uso atual dos recursos do sistema de artilharia com ps aux e top da seguinte maneira:
+Anote o ID do Processo em que a Artillery está funcionando.
+
+ps aux | grep artillery
+
+Troque PID pelo ID do processo do artillery
+
+top -p PID 
+
+É importante observar que se um usuário não fornecer uma senha SSH correta 4 vezes seguidas, ele será banido e não poderá mais se conectar ao servidor. Se isso acontecer e um usuário autorizado for banido, a Artillery inclui um script para reiniciar os banimentos. O uso do script é:
+
+Vá para o diretório da artilharia
+
+cd /var/artillery
+
+Substitua os x pelo ip do usuário banido.
+
+./reset-bans.py xxx.xxx.xxx.xxx 
+
+Devemos agora ter uma instalação de artilharia funcional configurada para suas necessidades. A artilharia usa poucos recursos do sistema, portanto não deve ser necessário atualizar a CPU/memória RAM em sua droplet para acomodá-la. Observe também que, por uma questão de brevidade, não cobrimos todas as entradas no arquivo de configuração; em vez disso, cobrimos as entradas mais comuns e importantes. Sinta-se à vontade para experimentar e ver quais opções de configuração funcionam melhor para você.
+
+https://www.digitalocean.com/community/tutorials/how-to-set-up-an-artillery-honeypot-on-an-ubuntu-vps
+
+
+Agora o 11Conteudo
+

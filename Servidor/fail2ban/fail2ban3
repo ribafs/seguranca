@@ -1,0 +1,21 @@
+Instalar e configurar o fail2ban
+
+Fail2ban funciona adicionando endereços IP dinamicamente ao firewall que falharam em um determinado número de tentativas de login. É muito fácil de instalar e configurar.
+
+dnf install -y fail2ban
+
+systemctl enable fail2ban
+
+nano /etc/fail2ban/jail.local
+
+[DEFAULT]
+# Set a 1 hour ban
+bantime = 3600
+
+# Override /etc/fail2ban/jail.d/00-firewalld.conf:
+banaction = iptables-multiport
+
+[sshd]
+enabled = true
+
+https://www.digitalocean.com/community/tutorials/how-to-protect-ssh-with-fail2ban-on-centos-7

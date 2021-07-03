@@ -1,0 +1,10 @@
+Para trocar a senha do super-administrador
+
+Vá até o phpMyAdmin no cpanel
+Abra o banco na tabela jos_users (ou outro prefixo)
+Visualize os registros (Geralmente o super-administrador é o primeiro)
+Edite então o registro do super-administrador e troque a senha
+Então em funções selecione MD5
+Execute e a senha está trocada.
+
+

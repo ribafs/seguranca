@@ -1,0 +1,44 @@
+Projeto Honeypot
+
+Http:BL API Specification
+
+https://www.projecthoneypot.org/httpbl_api.php
+
+Formato de consulta DNS
+
+As consultas são realizadas usando consultas DNS padrão. Por exemplo, a partir da linha de comando de uma máquina baseada em Unix, você poderia executar uma consulta DIG ou NSLOOKUP para um endereço específico. Todas as consultas para http: BL devem ser executadas em seu servidor DNS local que, se não tiver uma resposta autoritativa, passará a consulta para um servidor DNS mais confiável. Você não deve tentar consultar o servidor DNS mais autoritativo diretamente, mas, em vez disso, confiar na infraestrutura DNS para lidar com esse roteamento.
+
+O formato das consultas deve ser configurado com precisão para obter respostas precisas. Todas as consultas devem incluir sua chave de acesso seguida pelo endereço IP sobre o qual você está buscando informações (no formato de octeto reverso) seguido pelo domínio específico da lista que você está consultando. Imagine, por exemplo, que você está consultando informações sobre o endereço IP 127.9.1.2 e sua chave de acesso é abcdefghijkl, o formato de sua consulta deve ser construído da seguinte maneira:
+
+abcdefghijkl.2.1.9.127.dnsbl.httpbl.org
+
+[Chave de acesso] [IP revertido em octeto] [Domínio específico da lista]
+
+Duas coisas importantes a serem observadas sobre o endereço IP na consulta. Primeiro, o endereço IP é do visitante do seu site sobre o qual você está procurando informações. Em segundo lugar, o endereço IP deve estar no formato de octeto reverso. Isso significa que se o endereço IP 127.9.1.2 visitar seu site e você quiser solicitar http: BL para obter informações sobre ele, você deve primeiro reverter o endereço IP para ser formatado como 2.1.9.127.
+
+Observe que você inverte a ordem dos octetos (os números separados pelos pontos), você não inverte o endereço IP totalmente. Por exemplo, se você estava consultando o endereço IP 10.98.76.54, a seguir estão exemplos de exemplos corretos e incorretos de formato de octeto reverso.
+
+Consulta: 10.98.76.54
+Certo: 54,76,98,10
+Errado: 45.67.89.01
+
+Observe que, no futuro, http: BL adicionará suporte para vários subtipos de listas e oferecerá suporte a outros domínios específicos de lista. Nesse caso, o final da consulta pode ser substituído por algo diferente de dnsbl.httpbl.org. Essas sublistas podem identificar apenas harvesters, apenas spammers de comentários, apenas mecanismos de pesquisa, etc. O domínio específico da lista dnsbl.httpbl.org combina todas essas sublistas em uma única lista.
+Respostas de consulta
+
+A resposta DNS fornece detalhes sobre a atividade do endereço IP que está sendo verificado. As consultas retornam resultados IPv4 com três dos quatro octetos contendo dados para fornecer informações sobre o visitante do seu site. A intenção é permitir a flexibilidade de como você trata o visitante, em vez de uma simples resposta em preto e branco (por exemplo, você pode querer tratar os harvesters conhecidos de maneira diferente dos spammers de comentários conhecidos: bloqueando o primeiro de ver endereços de e-mail enquanto bloqueia o posterior do POST para formulários).
+
+Abaixo está um exemplo de uma consulta hipotética e uma resposta hipotética que será referenciada ao longo do restante desta seção:
+
+Consulta: abcdefghijkl.2.1.9.127.dnsbl.httpbl.org
+Resposta: 127.3.5.1
+
+Cada octeto, exceto o primeiro octeto, na resposta IPv4 tem um significado. O primeiro octeto (127 no exemplo acima) é sempre 127 e é predefinido para não ter um significado específico relacionado ao visitante específico. Se o primeiro octeto na resposta não for 127, significa que ocorreu uma condição de erro e que sua consulta pode não ter sido formatada corretamente.
+
+O segundo octeto (3 no exemplo acima) representa o número de dias desde a última atividade. No exemplo acima, já se passaram 3 dias desde a última vez que o endereço IP consultado viu atividade na rede do Projeto Honey Pot. Esse valor varia de 0 a 255 dias. Esse valor é útil para ajudá-lo a avaliar o quão "obsoletas" as informações fornecidas por http: BL são e, portanto, até que ponto você deve confiar nelas.
+
+O terceiro octeto (5 no exemplo acima) representa uma pontuação de ameaça para IP. Essa pontuação é atribuída internamente pelo Projeto Honey Pot com base em uma série de fatores, incluindo o número de potes de mel que o IP visitou, os danos causados ​​durante essas visitas (endereços de e-mail coletados ou formulários postados), etc. a pontuação é de 0 a 255, onde 255 é extremamente ameaçador e 0 indica que nenhuma pontuação de ameaça foi atribuída. No exemplo acima, o IP consultado tem uma pontuação de ameaça de "5", que é relativamente baixa. Embora seja uma medida aproximada e imperfeita, esse valor pode ser útil para ajudá-lo a avaliar a ameaça representada por um visitante de seu site.
+
+O quarto octeto (1 no exemplo acima) representa o tipo de visitante. Os tipos definidos incluem: "mecanismo de pesquisa", "suspeito", "colhedor" e "spammer de comentários". Como um visitante pode pertencer a vários tipos (por exemplo, um coletor que também é um spammer de comentários), esse octeto é representado como um bitset com um valor agregado de 0 a 255. No exemplo acima, o tipo é listado como 1, o que significa o visitante é apenas "desconfiado". Um gráfico que descreve os diferentes tipos aparece abaixo. Este valor é útil porque permite que você trate diferentes tipos de robôs de maneira diferente.
+
+Mais detalhes no link acima.
+

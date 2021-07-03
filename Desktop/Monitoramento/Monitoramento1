@@ -1,0 +1,271 @@
+Monitorando o servidor
+
+Monitorando o servidor com recursos do painel administrativo do DigitalOcean
+
+O Digital Ocean tem em seu painel administrativo, uns gráficos de uso dos recursos:
+- Consumo de banda, Uso da CPU e leitura e escrita de disco (I/O)
+- Acessar o painel efetuando login
+- Selecionar a droplet desejada
+Aparecerá o gráfico ao centro.
+
+Bandwidth - clique abaixo em private inbound para ver o seu uso e em public inbound para ver o uso externo
+CPU Usage - clique em sys para ver o consumo pelo sistema e em user para ver o consumo do usuário
+Disk I/O - clique em read para ver o uso de leitura e em write para ver o de escrita.
+(Existem outros recursos caso se faça upgrade da droplet)
+
+Acima e à direita exite uma combo que mostra por default Last 1 hour (Gráfico da última hora). Podemos mudar para quue mostre mais horas e até dias. Colado à direita tem outra combo com 5m, que é o tempo de refresh do gráfico, que podemos alterar.
+
+Se passarmos o ponteiro do mouse sobre o gráfico podemos ver detalhes pontuais.
+
+https://www.digitalocean.com/docs/droplets/how-to/graphs/
+
+Configurando monitores de alerta da droplet
+
+https://www.digitalocean.com/docs/monitoring/how-to/set-up-alerts/
+
+O Monitoramento DigitalOcean é um serviço opcional gratuito que reúne métricas sobre a utilização de recursos no nível do Droplet. Ele fornece gráficos Droplet adicionais e oferece suporte a políticas de alerta de métricas configuráveis com notificações Slack por e-mail integradas para ajudá-lo a rastrear a integridade operacional de sua infraestrutura.
+
+Este é um recurso que emite um alerta quando algum recurso atinge certo consumo. Para criar um Alert:
+
+- Selecione a droplet
+- à esquerda clique em Manage - Monitoring - Create Aelrt Policy
+- Clique em CPU para escolher o tipo de Alert (CPU, Banda entrada, saída, Disco leitura, escrita, Memória, Utilização de disco).
+	CPU
+	is above/acima
+	70%
+	5 min
+	
+	Role a tela e entre com o nome da droplet ou uma tag
+	Send alerts via e-mail
+	Name - CPU com consumo elevado
+	Create alert policy
+	
+	Significa: Quando o uso da CPU estiver acima de 70% por 5 minutos me avise.
+
+Vazamento de informação
+As primeiras mudanças de configuração relativamente triviais que devem ser feitas são para desabilitar qualquer vazamento de informações de seu servidor. Todas as distribuições do Linux têm configurações padrão pobres em relação ao vazamento de informações para o Apache e outros serviços. Embora a maioria descarte isso como não sendo uma preocupação, quanto menos informações você transmitir para um hacker, melhor. Cada solicitação ao servidor da web Apache pode responder com informações, como a versão exata do OpenSSL, versão do PHP e muitos outros itens.
+Embora alguns aplicativos como o OpenSSH exijam a transmissão de sua versão no banner para operação, não há razão funcional para o Apache transmitir seu número de versão para o mundo, e da mesma forma, nem qualquer outro módulo Apache relacionado.
+Buscar os cabeçalhos HTTP com curl como exemplo pode fornecer as seguintes informações publicamente:
+
+curl -I example.com
+
+Apache configurations:
+
+PHP configurations to be made in php.ini:
+
+Após configurar repita
+
+curl -I example.com
+
+Desabilitar serviços não usados
+
+
+Avalie a segurança do seu sistema quanto a vulnerabilidades, varrendo o sistema de pontos remotos em sua LAN usando ferramentas específicas, como:
+
+nmap
+nikto
+
+
+Monitorar os recursos
+
+Espaço em disco
+
+df -h
+
+Memória RAM e Swap
+
+free -m
+
+
+Listar portas de rede abertas
+
+Use o seguinte comando para listar todas as portas abertas e programas associados:
+
+netstat -tulpn
+
+ss -tulpn
+
+nmap -sT -O localhost
+nmap -sT -O server.example.com
+
+https://www.cyberciti.biz/tips/linux-scanning-network-for-open-ports.html
+https://www.cyberciti.biz/networking/nmap-command-examples-tutorials/
+
+
+Listar todos os serviços
+
+systemctl list-units --all --type=service --no-pager
+
+  UNIT                                                  LOAD      ACTIVE   SUB     DESCRIPTION                                                        
+  accounts-daemon.service                               loaded    active   running Accounts Service                                                   
+  acpid.service                                         loaded    active   running ACPI event daemon                                                  
+  alsa-restore.service                                  loaded    active   exited  Save/Restore Sound Card State                                      
+  alsa-state.service                                    loaded    inactive dead    Manage Sound Card State (restore and store)                        
+  anacron.service                                       loaded    inactive dead    Run anacron jobs                                                   
+  apache2.service                                       loaded    active   running The Apache HTTP Server                                             
+  apparmor.service                                      loaded    inactive dead    Load AppArmor profiles          
+
+O comando a seguir exibirá todos os arquivos de unidade systemd disponíveis, independentemente de seu estado e tipo:
+
+systemctl list-unit-files --no-pager
+
+Use o comando grep caso esteja procurando por um arquivo de unidade específico. Por exemplo, o comando abaixo irá procurar por um arquivo de unidade apache2:
+
+systemctl list-unit-files --no-pager | grep apache2
+
+
+Arquivos graváveis por todo o mundo (777) no servidor Linux
+
+Qualquer pessoa pode modificar um arquivo gravável mundialmente, resultando em um problema de segurança. Use o seguinte comando para localizar todos os arquivos de conjunto de bits permanentes e graváveis:
+
+sudo find /dir -xdev -type d \( -perm -0002 -a ! -perm -1000 \) -print
+
+
+Arquivos sem dono
+
+Os arquivos que não pertencem a nenhum usuário ou grupo podem representar um problema de segurança. Basta localizá-los com o seguinte comando que não pertencem a um usuário válido e a um grupo válido
+
+find /dir -xdev \( -nouser -o -nogroup \) -print
+
+Você precisa investigar cada arquivo relatado e atribuí-lo a um usuário e grupo apropriado ou removê-lo.
+
+
+Monitorar logs
+
+sudo apt install -y logwatch
+
+logwatch | less
+
+Se precisar reconfigurar o postfix
+
+sudo dpkg-reconfigure postfix
+sudo systemctl reload postfix
+
+sudo apt install -y logcheck
+
+sudo nano /etc/logcheck/logcheck.conf
+
+DATE="$(date +'%H:%M %d/%m/%Y')"
+REPORTLEVEL="server"
+SENDMAILTO="logcheck"
+MAILASATTACH=0
+FQDN=1
+ATTACKSUBJECT="Security Alerts"
+SECURITYSUBJECT="Security Events"
+EVENTSSUBJECT="System Events"
+TMP="/tmp"
+
+Níveis
+
+        paranoid
+                minimal set of filters in ignore.d.paranoid
+                for systems like firewalls, with few services
+                lot's of output (verbose), make sure you can handle it
+
+        server
+                more selective set of filters in ignore.d.server
+                also contains the paranoid filters
+                for machines running more services
+
+        workstation
+                elaborate set of filters in ignore.d.workstation
+                also uses ignore.d.paranoid and ignore.d.server filter
+                for non critical machines
+
+logcheck -h
+
+O comando a seguir relatará problemas de segurança ou violações, mas não atualizará as compensações:
+
+logcheck -t
+
+
+Desabilite serviços não usados
+
+$ sudo systemctl stop service
+$ sudo systemctl disable service
+
+Para desabilitar nginx
+
+$ sudo systemctl stop nginx
+$ sudo systemctl disable nginx
+
+
+Backups
+
+Nunca é demais enfatizar a importância de fazer um backup do sistema Linux. Um backup com snapchot é bem seguro e prático. Um backup externo adequado permite que você se recupere de um servidor invadido, ou seja, uma intrusão. Os programas tradicionais de backup do UNIX são o dump e o restore também são recomendados. Você deve configurar backups criptografados para armazenamento externo, como servidor NAS ou servidor FreeNAS ou usar serviço de computação em nuvem, como AWS.
+
+Backups são uma medida de segurança muito importante. Caso seu servidor tenha sido invadido ou tenha algum problema irrecuperável, poderá restaurar o backup (snapshot, Akeeba) em pouco tempo. No caso do servidor, apenas destrua recriando um novo usando o seu último snapshot. Caso tenha sofrido apenas problema num site com Joomla poderá restaurar o backup usando o kickstart do Akeeba
+https://github.com/ribafs/joomla/blob/main/Extensoes/ExtraindoJPA.md
+
+Mais recomendações de segurança
+
+https://www.cyberciti.biz/tips/linux-security.html
+
+
+Desativando ICMP - não obrigatório
+
+Muitos administradores geralmente desabilitam ou filtram as solicitações ICMP, embora isso não traga benefícios de segurança. No caso de algo como DNS, as solicitações ICMP são realmente usadas na especificação DNS para consultar se um servidor está disponível antes de enviar a solicitação DNS. As respostas ICMP também são extremamente benéficas para os servidores da web e podem servir na solução de problemas de um servidor da web que parece não estar respondendo às solicitações HTTP. A ameaça de uma inundação de ping é mínima hoje. A menos que o invasor tenha largura de banda de rede consideravelmente maior do que o alvo, a tentativa de inundação causará pouco efeito. As respostas de eco de ping consomem muito pouca CPU do alvo para responder, então é talvez um pouco como jogar muitas pedras pequenas na tentativa de derrubar uma parede de tijolos. É por isso que a maioria dos ataques DoS hoje se concentra em solicitações HTTP em vez de ICMP para aumentar o uso da CPU e da memória do servidor web, que é muito mais eficaz de executar. Resumindo, não há razão para desabilitar o ICMP.
+
+Permissões de arquivos e diretórios
+
+As permissões de arquivos e diretórios no Linux costumam ser um tópico confuso que leva a diferentes visões, especialmente no caso de diretórios e arquivos da web. O pior conselho, que nunca deve ser seguido, é alterar arquivos ou pastas para 777. Isso permite que qualquer pessoa no mundo execute ou grave em seu servidor. O melhor exemplo disso são os plug-ins nocivos do WordPress que hackers mal-intencionados enviam aos servidores por meio de um simples comando HTTP POST. Se as permissões de diretório forem 777, isso permite que qualquer pessoa leia, escreva ou execute qualquer coisa nesse diretório, incluindo a publicação de código malicioso.
+Muitos usuários do WordPress em particular foram recentemente comprometidos por um plugin malicioso que foi instalado porque os usuários incorporaram 777 permissões na instalação do WordPress.
+
+Em geral, os diretórios devem ser 750 ou 755. Os arquivos devem ser 644 ou 640.
+
+Localize os diretórios com 777 em seu servidor:
+
+sudo find /var/www/ -type d -perm -002
+
+Localize os arquivos com 777 em seu servidor:
+
+sudo find /var/www/ -type f -perm -002
+
+Além das permissões também precisamos ficar atentos para os donos dos arquivos/diretórios.
+
+Aplicativos PHP
+
+A execução de PHP em um servidor Linux é necessária para muitos aplicativos populares, como Drupal, WordPress e outros. Novas vulnerabilidades são encontradas não apenas no código PHP mal escrito, mas na própria linguagem em uma taxa alarmante. Visto que o PHP costuma ser emparelhado com o MySQL, um comprometimento do PHP pode significar um comprometimento do banco de dados MySQL que o acompanha para o servidor web. Para esses fins, é essencial estar atento a qualquer software PHP ou atualizações de plug-in. Não instale ou use código PHP de fontes desconhecidas. Para software de blog, minimize o número de plug-ins ou extensões em uso. Se um plug-in ou complemento não estiver ativado ou em uso para o blog ou site, remova os arquivos não utilizados do servidor.
+
+Certifique-se de que as páginas 404 para o servidor não forneçam informações estranhas e não interpretem o que foi colocado na barra de URL. Visite uma página 404 aleatória no servidor da web como um teste, como http://example.com/asdf. Os resultados da página 404 devem fornecer apenas um "Desculpe, essa página não foi encontrada" genérica e não tentar interpretar ou retransmitir os resultados que o usuário colocou na barra de URL. As páginas 404 que permitem a manipulação da entrada do usuário são um ponto de entrada para invasores criarem XSS e outras tentativas maliciosas.
+
+Monitoramento dos Logs
+
+Os logs são uma parte crítica para monitorar a segurança de um servidor web. Existem muitas ferramentas em distribuições Linux para automatizar o monitoramento de log. O aplicativo logwatch envia um relatório diário de e-mail de todos os logs no servidor para informar sobre entradas de log variáveis, como o número de e-mails enviados, invasores da web em potencial e IPs causando erros nos logs do Apache, tentativas de ssh e outros aspectos.
+
+Em um grande ambiente corporativo, é comum enviar emails logwatch junto com outros emails direcionados ao usuário root (erros de cron e outras mensagens do sistema) para uma única lista de emails da empresa. Os administradores da empresa, então, se inscrevem nessa única lista de e-mail para se manterem informados sobre quaisquer notificações alarmantes nos registros de vários servidores da empresa.
+
+https://resources.infosecinstitute.com/topic/securing-linux-web-server/
+
+
+Bloqueando contas de usuário após logins malsucedidos
+
+Para a segurança do Linux, o comando faillog mostra tentativas de login malsucedidas e pode atribuir limites para quantas vezes um usuário pode obter suas credenciais de login erradas antes que a conta seja bloqueada. faillog formata o conteúdo do log de falha do banco de dados de log 
+/var/log/faillog. Para visualizar as tentativas de login malsucedidas, digite:
+
+faillog
+
+Para abrir uma conta bloqueada desta forma, execute:
+
+faillog -r -u userName
+
+Com a segurança do Linux em mente, você pode usar o comando passwd para bloquear e desbloquear contas:
+
+Bloquear uma conta
+
+passwd -l userName
+
+Desbloquear
+
+passwd -u userName
+
+
+Proteja arquivos críticos
+
+É essencial bloquear arquivos críticos para evitar exclusão ou edição acidental. Esses arquivos incluem /etc/passwd e /etc/gshadow que contêm senhas com hash. Para tornar os arquivos imutáveis (ou seja, evitar modificação ou exclusão acidental), use o comando chattr conforme mostrado:
+
+sudo chattr +i /etc/passwd
+sudo chattr +i /etc/shadow
+
+Isso garante que um hacker não possa alterar nenhuma senha dos usuários ou excluí-los, levando à negação de login no sistema.
+

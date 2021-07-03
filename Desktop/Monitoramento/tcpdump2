@@ -1,0 +1,40 @@
+Tcpdump
+
+O tcpdump é uma ferramenta utilizada para monitorar os pacotes trafegados numa rede de computadores. Ela mostra os cabeçalhos dos pacotes que passam pela interface de rede.
+
+Instalação
+
+sudo apt update; sudo apt install -y install tcpdump
+
+Exemplo de comando tcpdump para mostrar quais as ligações de um determinado endereço tcp-ip à porta 80 do seu servidor: 
+
+tcpdump -ni eth0 src IP and dst port 80 
+
+"Tcpdump -i eth0" é usado para capturar o tráfego udp em eth0.
+
+"Tcpdump port test" é usado para capturar o tráfego na porta especificada (especifique a porta no lugar de ‘test’).
+
+"Tcpdump -c n" é usado para parar a captura após 'n' pacotes. Onde ‘n’ pode ser qualquer valor inteiro.
+
+"Tcpdump -d any" é usado para ver o tráfego em todas as portas / interfaces.
+
+"Tcpdump -v" é usado para exibir a saída detalhada.
+
+
+mkdir ~/scan_results/syn_scan
+
+sudo tcpdump host IP -w ~/scan_results/syn_scan/packets
+
+Pausar com Ctrl+Z
+
+Se quisermos ver o tráfego real de pacotes que foi enviado e recebido do destino, podemos ler o arquivo de pacotes de volta no tcpdump, como este:
+
+sudo tcpdump -nn -r ~/scan_results/syn_scan/packets | less
+
+Referências
+
+https://linuxize.com/post/tcpdump-command-in-linux/
+
+https://www.addictivetips.com/ubuntu-linux-tips/installing-and-using-tcpdump-on-ubuntu-linux/
+
+

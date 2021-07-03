@@ -1,0 +1,115 @@
+sudo nano /var/lib/pgsql/data/pg_hba.conf
+
+# TYPE  DATABASE        USER            ADDRESS                 METHOD
+
+# O usuário nomeuser pode acessar todos os bancos de qualquer local via internet com uma senha autenticada com md5
+host    all             nomeuer            0.0.0.0/0                md5
+
+# O usuário nomeuser pode acessar somente o banco nomebd de qualquer local na internet com uma senha autenticada com md5
+host    nomebd          nomeuser            0.0.0.0/0                md5
+
+# O usuário nomeuser pode acessar todos os bancos de um local confiável sem uma senha
+host    all             nomeuser            192.168.1.134            trust
+
+Também no postgresql.conf
+
+sudo nano /var/lib/pgsql/data/postgresql.conf
+
+ mudar para *
+
+- Instalar e configurar o PostgreSQL
+- Criar um banco (cos_db) com o postgres
+- Criar um esquema (unico_sc) no cos_db e remover o public
+- Criar um usuário (cos_us) que terá alguns privilégios sobre o esquema unico do banco cos_db
+
+- Para maior segurnça, sempre antes de conceder somente os privilégios necessários para um
+usuário sobre um objeto, remova todos os privilégios sobre o objeto do usuário.Exemplo:
+REVOKE ALL ON tabela FROM usuario;
+GRANT PRIVILEGES ON tabela TO usuario;
+
+GRANT ALL ON SCHEMA sc_testes TO us_testes;
+GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA sc_testes TO us_testes;
+GRANT USAGE ON ALL SEQUENCES IN SCHEMA sc_testes TO us_testes;
+
+Podemos criar objetos aqui mas especificando o esquema como prefixo. Ex:
+create table sc_testes.tabela1(campo1 int);SET search_path TO sc_testes;
+Agora podemos criar e excluir sem especificar o esquema, pois estamos nele:
+create testes.tabela1(campo1 int);
+
+REVOKE CONNECT ON DATABASE cos_db FROM PUBLIC;
+GRANT CONNECT ON DATABASE cos_db TO cos_us;
+
+REVOKE ALL ON ALL TABLES IN SCHEMA public FROM PUBLIC;
+
+GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO user_name;
+
+sudo -i -u postgres (testar se precis de login)
+--Criar user
+create role cos_us with login password 'zmxnxP@';
+\du
+\c cos_db
+-- Remover o esquema public
+drop schema public;
+-- Criar esquema
+create schema IF NOT EXISTS unico_sc AUTHORIZATION cos_us;
+\du
+SET search_path TO unico_sc;
+-- Criar a tabela tableA
+create table tableA;
+
+\d
+
+-- Acessar com o postgres
+psql -d cos_db;
+-- Remover todos os privilégios do cos_us na tabela tableA no
+REVOKE ALL PRIVILEGES ON unico_sc.tableA FROM cos_us;
+-- Conceder permissão ao cos_us de usar o esquema unico_sc
+GRANT USAGE ON SCHEMA unico_sc TO cos_us;
+-- Conceder premissão somente de SELECT na tabela tableA
+GRANT SELECT ON unico_sc.tableA TO cos_us;
+
+
+Examples
+
+Grant SELECT privilege to everyone for all tables (and views) you subsequently create in schema myschema, and allow role webuser to INSERT into them too:
+
+ALTER DEFAULT PRIVILEGES IN SCHEMA myschema GRANT SELECT ON TABLES TO PUBLIC;
+ALTER DEFAULT PRIVILEGES IN SCHEMA myschema GRANT INSERT ON TABLES TO webuser;
+
+Undo the above, so that subsequently-created tables won't have any more permissions than normal:
+
+ALTER DEFAULT PRIVILEGES IN SCHEMA myschema REVOKE SELECT ON TABLES FROM PUBLIC;
+ALTER DEFAULT PRIVILEGES IN SCHEMA myschema REVOKE INSERT ON TABLES FROM webuser;
+
+Remove the public EXECUTE permission that is normally granted on functions, for all functions subsequently created by role admin:
+
+ALTER DEFAULT PRIVILEGES FOR ROLE admin REVOKE EXECUTE ON FUNCTIONS FROM PUBLIC;
+
+Note however that you cannot accomplish that effect with a command limited to a single schema. This command has no effect, unless it is undoing a matching GRANT:
+
+ALTER DEFAULT PRIVILEGES IN SCHEMA public REVOKE EXECUTE ON FUNCTIONS FROM PUBLIC;
+
+
+As Jack Douglas pointed out, the above only gives the privileges for the already existing tables. To achieve the same for future tables, you have to define default privileges:
+
+ALTER DEFAULT PRIVILEGES 
+    FOR ROLE some_role   -- Alternatively "FOR USER"
+    IN SCHEMA public
+    GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO user_name;
+
+GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA <schema_name> TO <username>;
+GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA <schema_name> TO <username>;
+
+ALTER DEFAULT PRIVILEGES IN SCHEMA public
+  GRANT SELECT, INSERT, UPDATE, DELETE ON tables TO user_name;
+
+ALTER DEFAULT PRIVILEGES IN SCHEMA public
+  GRANT SELECT, USAGE ON sequences TO user_name;
+
+CREATE USER my_user_test WITH LOGIN NOSUPERUSER NOCREATEDB  NOCREATEROLE    INHERIT NOREPLICATION   CONNECTION LIMIT -1 PASSWORD 'xxxxxxx'; 
+
+
+GRANT CREATE, CONNECT, TEMPORARY ON DATABASE demo12 TO user1, user2;
+
+
+psql -U postgrespostgres=# CREATE ROLE readonly;postgres=# CREATE ROLE rw_demo12;postgres=# CREATE ROLE rw_demo34;postgres=# CREATE USER user1 ENCRYPTED PASSWORD 'user1';postgres=# CREATE USER user2 ENCRYPTED PASSWORD 'user2';postgres=# CREATE USER user3 ENCRYPTED PASSWORD 'user3';postgres=# CREATE USER user4 ENCRYPTED PASSWORD 'user4';postgres=# GRANT readonly TO user1, user2, user3, user4;postgres=# GRANT rw_demo12 TO user1, user2;postgres=# GRANT rw_demo34 TO user3, user4;

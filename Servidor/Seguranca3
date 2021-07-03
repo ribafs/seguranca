@@ -1,0 +1,172 @@
+Camadas de segurança de um servidor linux com servidor web e um CMS
+
+Infraestrutura
+Sistena operacional
+Desktop
+AMP/EMP
+CMS/framework
+Ferramentas
+- fail2banc
+- mod_security
+- SELinux
+
+== Sistema operacional
+
+Atualização
+
+Importante configurar atualizações automáticas pelo menos dos pacotes de segurança
+
+
+Criar usuário comum e add ao sudo
+
+Somente IPV4
+AddressFamily inet
+
+Habilitar um firewall para bloquear todas as portas, exceto as necessárias
+
+Instalar e configurar fail2ban
+
+Remover pacotes não usados
+
+Sobre firewall
+
+
+Desligue o IPv6 para aumentar a segurança do servidor Linux
+
+sudo nano /etc/sysconfig/network
+
+NETWORKING_ IPV6=no
+IPV6INIT=no
+
+Não permita login do root ao servidor
+
+Uma forte política de segurança nas senhas
+
+Então, quais são as "melhores práticas" ao configurar senhas?
+     1. Use senhas tão longas quanto você possa gerenciar
+     2. Evite palavras que aparecem no dicionário (como "uvas azuis")
+     3. Evite substituições de números que sejam fáceis de adivinhar (como "h3ll0")
+     4. Não faça referência à cultura pop (como “TARDIS”)
+     5. Nunca use uma senha em mais de um lugar
+     6. Altere sua senha regularmente e use uma diferente para cada site
+     7. Não anote as senhas e não as compartilhe. Não com ninguém. Sempre!
+     
+
+Use um bom IDS
+
+rkhunter
+
+https://www.plesk.com/blog/various/linux-server-security-best-practices/
+
+Use sempre SSL
+
+Instale e configure o ModSecurity
+
+Instalar intrusion prevention system (IPS)
+
+fail2ban
+
+https://www.linuxtechi.com/harden-secure-centos-8-rhel-8-server/
+
+Criar partição para o /tmp e adicionar ao fstab
+
+sudo nano /etc/fstab
+
+/dev/sda6       /tmp         ext4    defaults,nosuid,nodev,noexec 0 0
+
+Aplicar política de senha forte em servidores com vários usuários
+
+Force o sistema a usar senhas fortes adicionando a linha abaixo no arquivo /etc/pam.d/passwd.
+
+password required pam_pwquality.so retry=3
+
+Adicionando a linha acima, a senha inserida não pode conter mais de 3 caracteres em uma sequência monotônica, como abcd, e mais de 3 caracteres consecutivos idênticos, como 1111.
+
+Para forçar os usuários a usar uma senha com um comprimento mínimo de 8 caracteres, incluindo todas as classes de caracteres, verifique a força para sequências de caracteres e caracteres consecutivos, adicione as seguintes linhas ao arquivo /etc/security/pwquality.conf.
+
+minlen = 8
+minclass = 4
+maxsequence = 3
+maxrepeat = 3
+
+Impedir o acesso à Shell de contas
+
+Para evitar que uma conta do sistema (conta comum ou conta de serviço) obtenha acesso a um shell bash, altere o shell root para /usr/sbin/nologin ou /bin/false no arquivo /etc/passwd emitindo o comando abaixo:
+
+usermod -s /bin/false username
+
+Para alterar o shell ao criar um novo usuário, emita o seguinte comando:
+
+useradd -s /usr/sbin/nologin username
+
+Desativando Acesso do root via TTY
+
+Para evitar que a conta root execute o login do sistema através de todos os dispositivos do console (TTY), apague o conteúdo do arquivo securetty digitando o seguinte prompt do terminal de comando como root.
+
+cp /etc/securetty /etc/securetty.bak
+cat /dev/null > /etc/securetty
+
+Use SELinux no modo enforcing
+
+Use o servidor de logs centralizado
+
+Configure o daemon rsyslog para enviar mensagens de log de utilitários confidenciais para um servidor de log centralizado. Além disso, monitore os arquivos de log com a ajuda do utilitário logwatch.
+
+O envio de mensagens de log a um servidor remoto garante que, uma vez comprometido o sistema, os usuários mal-intencionados não consigam ocultar completamente sua atividade, sempre deixando rastros nos arquivos de log remotos.
+
+Reforce a segurança do kernel no 
+/etc/sysctl.conf
+
+
+Executar verificação externa do sistema
+
+
+Proteja o sistema internamente
+
+Use a proteção interna do sistema contra vírus, rootkits, malware e, como uma boa prática, instale sistemas de detecção de intrusão que podem detectar atividades não autorizadas (ataques DDOS, varreduras de portas), como:
+
+AIDE
+Clamav
+rkhunter
+lynis
+tripwire
+fail2ban
+OSSEC
+mod-security
+
+https://www.tecmint.com/centos-7-hardening-and-security-guide/
+
+https://bigstep.com/blog/five-ways-to-secure-a-centos-8-server
+
+Modificações no fstab
+
+sudo nano /etc/fstab
+
+/dev/VG_OS/lv_tmp           /tmp     ext3      defaults,nosuid,noexec,nodev  1 2
+/dev/VG_OS/lv_vartmp        /var/tmp ext3      defaults,nosuid,noexec,nodev 1 2
+/dev/sda1                   /boot    vfat      ro,nosuid,noexec,nodev  1 2
+
+Restringindo o user root
+
+Depois que um servidor está instalado e funcionando, o root não deve se conectar diretamente, exceto em situações de emergência. Isso geralmente requer mãos no console, então esse é o único lugar onde o root deve ter permissão para fazer login. Para fazer isso, precisamos modificar / etc / securetty. Além disso, ninguém além do root deve ser permitido no diretório inicial do root. As configurações padrão são próximas disso, mas não são paranóicas o suficiente.
+
+sudo -i
+echo "tty1"> /etc/securetty
+chmod 700 /root
+
+Uma vez que removemos efetivamente a capacidade do root de logar de qualquer lugar, exceto do console local, é necessário usar su e sudo. Isso oferece alguns benefícios secundários em um ambiente multi-admin.
+
+     • sudo permite controle granular sobre ações privilegiadas. Dessa forma, um administrador de site pode iniciar, parar e gerenciar o servidor da web sem ser capaz de afetar outros serviços.
+     • Você obtém uma imagem muito mais clara de quem fez o quê em seus logs, já que quem se tornou root em que horas não é mais um mistério.
+
+Usando TCP Wrappers
+     
+Wrappers TCP podem fornecer um método rápido e fácil para controlar o acesso aos aplicativos vinculados a eles. Exemplos de aplicativos compatíveis com TCP Wrapper são sshd e portmap. Um exemplo restritivo está abaixo. Este exemplo bloqueia tudo, exceto ssh.
+
+sudo -i
+echo "ALL:ALL" >> /etc/hosts.deny
+echo "sshd:ALL" >> /etc/hosts.allow
+
+https://wiki.centos.org/HowTos/OS_Protection
+
+

@@ -1,0 +1,31 @@
+Protegendo o WordPress Admin (wp-admin) com .htaccess
+
+Alguns dizem que a ofuscação não oferece nenhum benefício de segurança, então não há nenhuma vantagem real em renomeando wp-login.php para outra coisa. Como não confio em muitos plug-ins, usar um plug-in para renomear parece uma espada de dois gumes. Em vez disso, prefiro usar .htaccess para impedir o acesso de fontes não autorizadas para wp-login.php e o diretório wp-admin.
+
+1. Crie .htaccess em seu diretório wp-admin (nano /data/.sitehome/cloudwire.info/web/wp-admin/.htaccess)
+
+2. Adicione o seguinte, substituindo X.X.X.X pelo (s) seu (s) endereço (s) IP. Endereços IP adicionais podem estar na lista branca em novas linhas.
+
+Order Deny,Allow
+Deny from all
+Allow from X.X.X.X
+Allow from X.X.X.X
+
+
+Nota: Se o seu endereço IP mudar e você ficar bloqueado, você precisará conectar-se ao servidor com SSH e atualize isso.
+
+Protegendo wp-login.php com .htaccess 
+
+Como uma medida adicional, podemos fazer o mesmo para restringir acesso ao arquivo wp-login.php que reside em seu diretório raiz da web.
+
+1. Edite ‘.htaccess’ no diretório raiz da web (vi /data/.sitehome/cloudwire.info/web/.htaccess).
+Este arquivo já deve existir para WordPress, se não for criá-lo.
+
+2. Adicione o seguinte, substituindo X.X.X.X pelo seu endereço IP.
+<Files wp-login.php>
+	order deny,allow
+	Deny from all
+	Allow from X.X.X.X
+</Files>
+
+

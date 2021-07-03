@@ -1,0 +1,52 @@
+Monitorando  a rede com netstat
+
+netstat - network statistics, é uma ferramenta utilitária de rede de linha de comando que exibe conexões de rede para o Transmission Control Protocol (entrada e saída) e User Datagram Protocol (UDP),[1] tabelas de roteamento e várias interfaces de rede (controlador de interface de rede ou interface de rede definida por software) e estatísticas de protocolo de rede. Ele está disponível em sistemas operacionais do tipo Unix, incluindo macOS, Linux, Solaris e BSD, e está disponível em sistemas operacionais baseados no Windows NT, incluindo o Windows XP, Windows Vista, Windows 7, Windows 8 e Windows 10.
+
+Ele é usado para encontrar problemas na rede e para determinar a quantidade de tráfego na rede como medida de desempenho.[2] No Linux, este programa é na maior parte obsoleto, embora ainda esteja incluído em muitas distribuições.
+
+No Linux, o netstat (parte do "net-tools") foi substituído pelo ss (parte do iproute2). A substituição para netstat -r é ip route. A substituição para netstat -i é ip -s link, e a substituição para netstat -g é ip maddr, onde recomenda-se utilizar todos seus substitutos (Wikipedia)
+
+netstat -nat | awk '{print $6}' | sort | uniq -c | sort -n
+
+netstat -nat |grep {IP-address} | awk '{print $6}' | sort | uniq -c | sort -n
+
+netstat -nat |grep 202.54.1.10 | awk '{print $6}' | sort | uniq -c | sort -n
+
+To print list of all unique IP address connected to server, enter:
+# netstat -nat | awk '{ print $5}' | cut -d: -f1 | sed -e '/^$/d' | uniq
+
+To print total of all unique IP address, enter:
+# netstat -nat | awk '{ print $5}' | cut -d: -f1 | sed -e '/^$/d' | uniq | wc -l
+
+If you think your Linux box is under attack, print out a list of open connections on your box and sorts them by according to IP address, enter:
+# netstat -atun | awk '{print $5}' | cut -d: -f1 | sed -e '/^$/d' |sort | uniq -c | sort -n
+
+# netstat -s | less
+# netstat -t -s | less
+# netstat -u -s | less
+# netstat -w -s | less
+# netstat -s
+
+You can easily display dropped and total transmitted packets with netstat for eth0:
+# netstat --interfaces eth0
+
+ype the following command to see IPv4 port(s), enter:
+# lsof -Pnl +M -i4
+
+Type the following command to see IPv6 listing port(s), enter:
+# lsof -Pnl +M -i6
+
+Type the command as follows:
+# netstat -tulpn
+
+OR
+# netstat -npl
+
+/etc/services file
+
+/etc/services is a plain ASCII file providing a mapping between friendly textual names for internet services, and their underlying assigned port numbers and protocol types. Every networking program should look into this file to get the port number (and protocol) for its service. You can view this file with the help of cat or less command:
+$ cat /etc/services
+$ grep 110 /etc/services
+$ less /etc/services
+
+

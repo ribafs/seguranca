@@ -1,0 +1,121 @@
+Introdução ao SELinux
+
+SELinux é um sistema Mandatory Access Control (MAC), desenvolvido pela NSA. O SELinux foi desenvolvido como uma substituição para o Controle de 
+Acesso Discricionário (DAC) que acompanha a maioria das distribuições Linux.
+
+A diferença entre DAC e MAC é como os usuários e aplicativos obtêm acesso às máquinas. Tradicionalmente, o comando sudo dá ao usuário a capacidade de aumentar as permissões para o nível de raiz. O acesso root em um sistema DAC dá à pessoa ou programa acesso a todos os programas e arquivos em um sistema.
+
+Uma pessoa com acesso root deve ser uma parte confiável. Mas se a segurança foi comprometida, o sistema também. O SELinux e os MACs resolvem esse problema confinando processos com privilégios e automatizando a criação de políticas de segurança.
+
+O padrão do SELinux é negar qualquer coisa que não seja explicitamente permitida. O SELinux tem dois modos globais, permissivo e obrigatório. O modo permissivo permite que o sistema funcione como um sistema DAC, ao registrar cada violação no SELinux. O modo de imposição aplica uma negação estrita de acesso a qualquer coisa que não seja explicitamente permitida. Para permitir explicitamente determinado comportamento em uma máquina, você, como administrador do sistema, deve escrever políticas que o permitam. Este guia fornece uma introdução breve e básica aos comandos e práticas comumente usados ​​para a administração do sistema SELinux.
+
+SELinux
+
+Security-Enhanced Linux (SELinux) é um módulo de segurança do kernel Linux que fornece um mecanismo para suportar políticas de segurança de controle de acesso, incluindo controles de acesso obrigatórios (MAC).
+
+SELinux é um conjunto de modificações do kernel e ferramentas de espaço do usuário que foram adicionadas a várias distribuições Linux. Sua arquitetura se esforça para separar a aplicação das decisões de segurança da política de segurança e agiliza a quantidade de software envolvida na aplicação da política de segurança. Os principais conceitos subjacentes ao SELinux podem ser rastreados em vários projetos anteriores da Agência de Segurança Nacional dos Estados Unidos (NSA).
+
+Visão geral
+
+A equipe do NSA Security-Enhanced Linux descreve o NSA SELinux como um conjunto de patches para o kernel Linux e utilitários para fornecer uma arquitetura de controle de acesso (MAC) forte, flexível e obrigatória para os principais subsistemas do kernel. Ele fornece um mecanismo aprimorado para impor a separação de informações com base em requisitos de confidencialidade e integridade, o que permite que ameaças de adulteração e desvio de mecanismos de segurança de aplicativos sejam tratadas e permite o confinamento de danos que podem ser causados ​​por aplicativos maliciosos ou com falhas. Inclui um conjunto de arquivos de configuração de política de segurança de amostra projetados para atender a objetivos de segurança comuns e de uso geral.
+Um kernel Linux integrando SELinux impõe políticas de controle de acesso obrigatórias que confinam programas de usuário e serviços de sistema, bem como acesso a arquivos e recursos de rede. Limitar o privilégio ao mínimo necessário para trabalhar reduz ou elimina a capacidade desses programas e daemons de causar danos se estiverem com defeito ou comprometidos (por exemplo, por meio de estouros de buffer ou configurações incorretas). Este mecanismo de confinamento opera independentemente dos mecanismos tradicionais de controle de acesso do Linux (discricionário). Ele não tem o conceito de um superusuário "root" e não compartilha das conhecidas deficiências dos mecanismos de segurança tradicionais do Linux, como a dependência de binários setuid / setgid.
+
+A segurança de um sistema Linux "não modificado" (um sistema sem SELinux) depende da exatidão do kernel, de todos os aplicativos privilegiados e de cada uma de suas configurações. Uma falha em qualquer uma dessas áreas pode permitir o comprometimento de todo o sistema. Em contraste, a segurança de um sistema "modificado" (baseado em um kernel SELinux) depende principalmente da correção do kernel e de sua configuração de política de segurança. Embora problemas com a correção ou configuração de aplicativos possam permitir o comprometimento limitado de programas de usuário individuais e daemons do sistema, eles não representam necessariamente uma ameaça à segurança de outros programas do usuário e daemons do sistema ou à segurança do sistema como um todo.
+
+De uma perspectiva purista, o SELinux fornece um híbrido de conceitos e recursos extraídos de controles de acesso obrigatórios, controles de integridade obrigatórios, controle de acesso baseado em funções (RBAC) e arquitetura de aplicação de tipo.
+
+História
+
+O primeiro trabalho direcionado para padronizar uma abordagem que forneça controles de acesso obrigatórios e discricionários (MAC e DAC) dentro de um ambiente de computação UNIX (mais precisamente, POSIX) pode ser atribuído ao Grupo de Trabalho Trusted UNIX (TRUSIX) da Agência de Segurança Nacional, que se reuniu em 1987 a 1991 e publicou um livro Rainbow (# 020A), e produziu um modelo formal e protótipo de evidência de avaliação associado (# 020B) que finalmente não foi publicado.
+
+O SELinux foi projetado para demonstrar o valor dos controles de acesso obrigatórios para a comunidade Linux e como esses controles podem ser adicionados ao Linux. Originalmente, os patches que compõem o SELinux tinham que ser aplicados explicitamente ao código-fonte do kernel Linux; O SELinux foi incorporado à linha principal do kernel Linux na série 2.6 do kernel Linux.
+
+A NSA, a principal desenvolvedora original do SELinux, lançou a primeira versão para a comunidade de desenvolvimento de código aberto sob a GNU GPL em 22 de dezembro de 2000. [6] O software foi incorporado ao kernel Linux 2.6.0-test3, lançado em 8 de agosto de 2003. Outros contribuidores significativos incluem Red Hat, Network Associates, Secure Computing Corporation, Tresys Technology e Trusted Computer Solutions. Portas experimentais da implementação FLASK / TE foram disponibilizadas por meio do Projeto TrustedBSD para os sistemas operacionais FreeBSD e Darwin.
+
+O Security-Enhanced Linux implementa o Flux Advanced Security Kernel (FLASK). Esse kernel contém componentes arquitetônicos prototipados no sistema operacional Fluke. Eles fornecem suporte geral para impor muitos tipos de políticas de controle de acesso obrigatórias, incluindo aquelas baseadas nos conceitos de aplicação de tipo, controle de acesso baseado em função e segurança multinível. O FLASK, por sua vez, foi baseado no DTOS, um sistema operacional distribuído confiável derivado do Mach, bem como no Trusted Mach, um projeto de pesquisa da Trusted Information Systems que teve influência no design e na implementação do DTOS.
+Usuários, políticas e contextos de segurança.
+
+Os usuários e funções do SELinux não precisam estar relacionados aos usuários e funções reais do sistema. Para cada usuário ou processo atual, o SELinux atribui um contexto de três strings que consiste em um nome de usuário, função e domínio (ou tipo). Este sistema é mais flexível do que normalmente requerido: como regra, a maioria dos usuários reais compartilham o mesmo nome de usuário SELinux, e todo o controle de acesso é gerenciado através da terceira tag, o domínio. As circunstâncias em que um processo é permitido em um determinado domínio devem ser configuradas nas políticas. O comando runcon permite o lançamento de um processo em um contexto explicitamente especificado (usuário, função e domínio), mas SELinux pode negar a transição se não for aprovado pela política.
+
+Arquivos, portas de rede e outros hardwares também têm um contexto SELinux, consistindo em um nome, função (raramente usado) e tipo. No caso de sistemas de arquivos, o mapeamento entre os arquivos e os contextos de segurança é chamado de rotulagem. A rotulagem é definida em arquivos de política, mas também pode ser ajustada manualmente sem alterar as políticas. Os tipos de hardware são bastante detalhados, por exemplo, bin_t (todos os arquivos na pasta / bin) ou postgresql_port_t (porta PostgreSQL, 5432). O contexto SELinux para um sistema de arquivos remoto pode ser especificado explicitamente no momento da montagem.
+
+O SELinux adiciona a opção -Z aos comandos do shell ls, ps e alguns outros, permitindo que o contexto de segurança dos arquivos ou processos seja visto.
+
+As regras de política típicas consistem em permissões explícitas, por exemplo, quais domínios o usuário deve possuir para realizar certas ações com o destino fornecido (ler, executar ou, no caso de porta de rede, ligar ou conectar) e assim por diante. Mapeamentos mais complexos também são possíveis, envolvendo funções e níveis de segurança.
+Uma política típica consiste em um arquivo de mapeamento (rotulagem), um arquivo de regra e um arquivo de interface, que definem a transição de domínio. Esses três arquivos devem ser compilados junto com as ferramentas SELinux para produzir um único arquivo de política. O arquivo de política resultante pode ser carregado no kernel para torná-lo ativo. As políticas de carregamento e descarregamento não exigem reinicialização. Os arquivos de política são escritos à mão ou podem ser gerados a partir da ferramenta de gerenciamento SELinux mais amigável. Normalmente são testados primeiro no modo permissivo, onde as violações são registradas, mas permitidas. A ferramenta audit2allow pode ser usada posteriormente para produzir regras adicionais que estendem a política para permitir que todas as atividades legítimas do aplicativo sejam confinadas.
+
+Características
+
+Os recursos do SELinux incluem:
+
+    • Separação clara da política da aplicação
+    • Interfaces de políticas bem definidas
+    • Suporte para aplicativos que consultam a política e reforçam o controle de acesso (por exemplo, crond executando trabalhos no contexto correto)
+    • Independência de políticas e linguagens de políticas específicas
+    • Independência de formatos e conteúdos específicos de etiqueta de segurança
+    • Rótulos e controles individuais para objetos e serviços do kernel
+    • Suporte para mudanças de política
+    • Medidas separadas para proteger a integridade do sistema (tipo de domínio) e a confidencialidade dos dados (segurança multinível)
+    • Política flexível
+    • Controles sobre inicialização e herança de processo e execução de programa
+    • Controles sobre sistemas de arquivos, diretórios, arquivos e descritores de arquivos abertos
+    • Controles sobre sockets, mensagens e interfaces de rede
+    • Controles sobre o uso de "capacidades"
+    • Informações em cache sobre decisões de acesso por meio do Access Vector Cache (AVC) [7]
+    • Política de negação de padrão (qualquer coisa não explicitamente especificada na política não é permitida) [8] [9] [10]
+
+Implementações
+
+SELinux foi implementado no Android desde a versão 4.3. [11]
+Entre as distribuições GNU / Linux suportadas pela comunidade, o Fedora foi um dos primeiros a adotá-lo, incluindo suporte por padrão desde o Fedora Core 2. Outras distribuições incluem suporte para ele, como o Debian a partir da versão 9 Stretch release [12] e Ubuntu como de 8.04 Hardy Heron. [13] A partir da versão 11.1, o openSUSE contém "habilitação básica" do SELinux. [14] O SUSE Linux Enterprise 11 apresenta o SELinux como uma "amostra da tecnologia". [15]
+SELinux é popular em sistemas baseados em contêineres Linux, como CoreOS Container Linux e rkt. [16] É útil como um controle de segurança adicional para ajudar a reforçar o isolamento entre os contêineres implantados e seu host.
+
+O SELinux está disponível desde 2005 como parte do Red Hat Enterprise Linux (RHEL) versão 4 e todas as versões futuras. Essa presença também se reflete nas versões correspondentes do CentOS e do Scientific Linux. A política com suporte no RHEL4 é uma política direcionada que visa a máxima facilidade de uso e, portanto, não é tão restritiva quanto poderia ser. As versões futuras do RHEL são planejadas para ter mais destinos na política direcionada, o que significará políticas mais restritivas.
+
+Cenários de uso
+O SELinux pode potencialmente controlar quais atividades um sistema permite a cada usuário, processo e daemon, com especificações muito precisas. Ele é usado para confinar daemons, como mecanismos de banco de dados ou servidores da Web que têm acesso a dados e direitos de atividade claramente definidos. Isso limita o dano potencial de um daemon confinado que fica comprometido.
+
+Os utilitários de linha de comando incluem: 
+
+chcon, 
+restorecon, 
+restorecond, 
+runcon, 
+secon, 
+fixfiles, 
+setfiles, 
+load_policy, 
+booleans , 
+getsebool, 
+setsebool, 
+togglesebool, 
+setenforce, 
+semodule, 
+postfix-nochroot, 
+check-selinux-installation, 
+semodule_package, 
+checkmodule, 
+selinux-config-enforcing, 
+selinuxenabled e 
+selinux-policy-upgrade.
+
+Referências
+
+https://en.wikipedia.org/wiki/Security-Enhanced_Linux
+
+https://wiki.debian.org/SELinux/Setup
+https://wiki.archlinux.org/index.php/SELinux
+https://www.nsa.gov/Portals/70/documents/what-we-do/research/selinux/documentation/presentations/2007-whats-new-with-selinux-presentation.pdf
+https://community.oracle.com/tech/developers/discussion/2582412/oracle-and-selinux
+https://wiki.ubuntu.com/SELinux
+https://www.redhat.com/en/topics/linux/what-is-selinux
+
+https://source.android.com/security/selinux
+
+https://events.static.linuxfound.org/sites/events/files/slides/abs2014_seforandroid_smalley.pdf
+
+https://www.nsa.gov/Portals/70/documents/resources/everyone/digital-media-center/publications/research-papers/implementing-selinux-as-linux-security-module-report.pdf
+
+https://www.nsa.gov/Portals/70/documents/resources/everyone/digital-media-center/publications/research-papers/configuring-selinux-policy-report.pdf
+
+

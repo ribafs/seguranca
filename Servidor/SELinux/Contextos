@@ -1,0 +1,24 @@
+Contextos no SELinux
+
+SELinux marca cada objeto em uma máquina com um contexto. Cada arquivo, usuário e processo tem um contexto. O contexto é dividido em três partes: 
+
+usuário, função e tipo. 
+
+Uma política SELinux controla quais usuários podem obter quais funções. 
+
+Cada função específica impõe uma restrição ao tipo de arquivo que o usuário pode acessar. Quando um usuário efetua login em um sistema, uma função é atribuída ao usuário conforme visto no exemplo ls -Z, a saída unconfined_u é uma função do usuário.
+
+     1. Crie um diretório em sua pasta inicial:
+     
+mkdir ~/example_dir
+
+	2. Imprima o contexto de segurança SELinux dos diretórios e arquivos da sua pasta pessoal:
+	
+ls -Z ~/
+
+Saída
+drwxrwxr-x. example_user example_user unconfined_u:object_r:user_home_t:s0 example_dir
+
+As informações específicas do SELinux estão contidas na parte unconfined_u: object_r: user_home_t: s0, que segue a seguinte sintaxe: user: role: type: level. Para saber mais sobre usuários, funções e controle de acesso relacionado, consulte a documentação do CentOS SELinux (https://wiki.centos.org/HowTos/SELinux)
+
+
